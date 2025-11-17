@@ -1,0 +1,189 @@
+/**
+ * ZombieStateEngine - Deterministic state machine for task zombie lifecycle
+ * Implements exact transitions with numeric thresholds per spec
+ */
+
+export class ZombieStateEngine {
+  /**
+   * Evaluate and potentially transition task to next zombie state
+   * @param {Object} task - Task with zombie field
+   * @param {Date} now - Server authoritative timestamp
+   * @returns {Object} - { newState, riskScore, shouldTransition, events }
+   */
+  static evaluateTask(task, now = new Date()) {
+    const zombie = task.zombie || { state: 'healthy', riskScore: 0 };
+    const lastInteraction = zombie.lastInteractionAt 
+      ? new Date(zombie.lastInteractionAt) 
+      : new Date(task.created_date || now);
+    
+    const timeSinceInteraction = (now - lastInteraction) / (1000 * 60 * 60); // hours
+    const timeToDeadline = task.deadline 
+      ? (new Date(task.deadline) - now) / (1000 * 60 * 60) 
+      : Infinity;
+    
+    let newState = zombie.state;
+    let riskScore = zombie.riskScore || 0;
+    const events = [];
+    let shouldTransition = false;
+
+    // A. healthy → sick
+    if (zombie.state === 'healthy') {
+      const threshold = Math.min(task.estimated_minutes * 0.5, 24 * 60) / 60; // hours
+      if (timeSinceInteraction >= threshold && task.status !== 'in_progress') {
+        riskScore = Math.min(riskScore + 0.20, 1.0);
+        newState = 'sick';
+        shouldTransition = true;
+        events.push({
+          type: 'zombieStateChange',
+          data: {
+            taskId: task.id,
+            oldState: 'healthy',
+            newState: 'sick',
+            reason: 'time_threshold',
+            riskScore
+          }
+        });
+      }
+    }
+
+    // B. sick → zombie_rising
+    if (zombie.state === 'sick') {
+      if (riskScore >= 0.40 || timeSinceInteraction >= 48 || 
+          (timeToDeadline <= 72 && task.status === 'todo')) {
+        riskScore = Math.min(riskScore + 0.20, 1.0);
+        newState = 'zombie_rising';
+        shouldTransition = true;
+        events.push({
+          type: 'zombieStateChange',
+          data: {
+            taskId: task.id,
+            oldState: 'sick',
+            newState: 'zombie_rising',
+            reason: riskScore >= 0.40 ? 'risk_threshold' : timeSinceInteraction >= 48 ? 'time_threshold' : 'deadline_pressure',
+            riskScore
+          }
+        });
+      }
+    }
+
+    // C. zombie_rising → zombie
+    if (zombie.state === 'zombie_rising') {
+      const driftDelta = this.computeDriftDelta(task, now);
+      if (riskScore >= 0.70 || timeSinceInteraction >= 96 || driftDelta >= 0.6) {
+        newState = 'zombie';
+        shouldTransition = true;
+        events.push({
+          type: 'zombieStateChange',
+          data: {
+            taskId: task.id,
+            oldState: 'zombie_rising',
+            newState: 'zombie',
+            reason: riskScore >= 0.70 ? 'critical_risk' : timeSinceInteraction >= 96 ? 'abandoned' : 'drift_critical',
+            riskScore
+          }
+        });
+      }
+    }
+
+    return {
+      newState,
+      riskScore,
+      shouldTransition,
+      events,
+      lastStateChangeAt: shouldTransition ? now.toISOString() : zombie.lastStateChangeAt
+    };
+  }
+
+  /**
+   * Handle task cure (completion or milestone)
+   * @returns {Object} - XP award and card spawn check
+   */
+  static cureTask(task, user) {
+    const wasZombie = task.zombie?.state === 'zombie';
+    
+    // Calculate XP per spec formula
+    let baseXP = Math.round(task.estimated_minutes / 10) * (1 + task.importance / 10);
+    if (wasZombie) {
+      baseXP *= 1.5;
+    }
+
+    const events = [{
+      type: 'taskCured',
+      data: {
+        taskId: task.id,
+        xpAwarded: Math.round(baseXP),
+        curedFromZombie: wasZombie
+      }
+    }];
+
+    return {
+      newState: 'cured',
+      riskScore: 0,
+      xpAwarded: Math.round(baseXP),
+      events,
+      shouldSpawnCard: this.checkCardSpawn(task, wasZombie)
+    };
+  }
+
+  /**
+   * Compute drift delta for zombie_rising → zombie transition
+   */
+  static computeDriftDelta(task, now) {
+    if (!task.deadline) return 0;
+    
+    const timeToDeadline = (new Date(task.deadline) - now) / (1000 * 60 * 60 * 24); // days
+    const timePassedSinceCreation = (now - new Date(task.created_date)) / (1000 * 60 * 60 * 24);
+    
+    const expectedProgress = Math.min(timePassedSinceCreation / (timeToDeadline + timePassedSinceCreation), 1);
+    const actualProgress = (task.milestones?.filter(m => m.completed).length || 0) / 
+                          (task.milestones?.length || 1);
+    
+    return Math.max(0, expectedProgress - actualProgress);
+  }
+
+  /**
+   * Check if mutation card should spawn
+   */
+  static checkCardSpawn(task, wasZombie) {
+    let baseChance = 0.15;
+    
+    if (wasZombie) baseChance += 0.25;
+    if (task.importance >= 7) baseChance += 0.15;
+    if (task.estimated_minutes >= 120) baseChance += 0.10;
+    
+    return Math.random() < baseChance;
+  }
+
+  /**
+   * Get top message based on zombie states in task list
+   */
+  static getTopMessage(tasks, demoMode = false) {
+    if (demoMode) {
+      return "DEMO MODE — simulated week running fast. Click 'Stop Demo' to return to your profile.";
+    }
+
+    const zombies = tasks.filter(t => t.zombie?.state === 'zombie');
+    const rising = tasks.filter(t => t.zombie?.state === 'zombie_rising');
+
+    if (zombies.length > 0) {
+      return "WARNING — a ZOMBIE has formed! Cure it now for +50% XP!";
+    }
+    if (rising.length > 0) {
+      return "Heads up — something's getting sick. Cure it soon!";
+    }
+    return "Keep your tasks alive — tame your zombies!";
+  }
+
+  /**
+   * Get microcopy for reward based on motivation tone
+   */
+  static getRewardMicrocopy(tone) {
+    const messages = {
+      sweet: "Well done, hero — that zombie won't bug you again!",
+      sarcastic: "Finally. Took you long enough, but nice.",
+      drill: "Victory. Now keep the momentum — no breaks.",
+      unhinged: "You slayed the undead! Bow to your greatness!"
+    };
+    return messages[tone] || messages.sweet;
+  }
+}
