@@ -1,0 +1,82 @@
+{
+  "name": "ZombieProfile",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Owner of this zombie"
+    },
+    "name": {
+      "type": "string",
+      "default": "Unnamed Zombie"
+    },
+    "personality": {
+      "type": "string",
+      "enum": [
+        "feral_biter",
+        "toxic_spitter",
+        "armored_rotter",
+        "shadow_stalker",
+        "viral_screamer"
+      ],
+      "default": "feral_biter"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "stable",
+        "sick",
+        "rotting",
+        "feral"
+      ],
+      "default": "stable"
+    },
+    "appearance_level": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 5,
+      "description": "0=pristine, 10=completely rotten"
+    },
+    "power_level": {
+      "type": "number",
+      "default": 1
+    },
+    "evolution_stage": {
+      "type": "number",
+      "default": 1,
+      "description": "Stage 1-5 of evolution"
+    },
+    "fighting_style": {
+      "type": "string",
+      "enum": [
+        "aggressive",
+        "defensive",
+        "tactical",
+        "berserk"
+      ],
+      "default": "aggressive"
+    },
+    "voice_lines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "last_interaction": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cure_progress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0
+    }
+  },
+  "required": [
+    "user_id"
+  ]
+}
