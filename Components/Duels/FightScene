@@ -1,0 +1,332 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ARCADE_COLORS } from "../zombie/ThemePalettes";
+import { Skull, Zap, Heart } from "lucide-react";
+
+export default function FightScene({ 
+  duel, 
+  user, 
+  intensity = 3, 
+  onMilestoneComplete 
+}) {
+  const [userHP, setUserHP] = useState(100);
+  const [opponentHP, setOpponentHP] = useState(100);
+  const [showAttack, setShowAttack] = useState(null);
+  const [damageNumbers, setDamageNumbers] = useState([]);
+  const [combatLog, setCombatLog] = useState([]);
+
+  const isChallenger = duel.challenger_id === user.id;
+  const myProgress = isChallenger ? duel.challenger_progress : duel.challengee_progress;
+  const theirProgress = isChallenger ? duel.challengee_progress : duel.challenger_progress;
+
+  useEffect(() => {
+    setUserHP(100 - theirProgress);
+    setOpponentHP(100 - myProgress);
+  }, [myProgress, theirProgress]);
+
+  const triggerAttack = (attacker, damage) => {
+    setShowAttack(attacker);
+    
+    const id = Date.now();
+    setDamageNumbers(prev => [...prev, { id, damage, attacker }]);
+    
+    setTimeout(() => {
+      setShowAttack(null);
+      setDamageNumbers(prev => prev.filter(d => d.id !== id));
+    }, 1000);
+
+    const message = attacker === 'user' 
+      ? `💥 You deal ${damage} damage!`
+      : `💀 Opponent strikes for ${damage} damage!`;
+    setCombatLog(prev => [...prev.slice(-4), { id, message, attacker }]);
+  };
+
+  return (
+    <div 
+      className="rounded-2xl p-6 overflow-hidden relative"
+      style={{
+        background: `linear-gradient(180deg, ${ARCADE_COLORS.black} 0%, ${ARCADE_COLORS.darkGray} 100%)`,
+        border: `2px solid ${ARCADE_COLORS.bloodyRed}`,
+        boxShadow: `0 0 40px ${ARCADE_COLORS.bloodyRed}33`,
+        minHeight: '400px'
+      }}
+    >
+      {/* Battlefield Grid */}
+      <div 
+        className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage: `linear-gradient(${ARCADE_COLORS.matrixGreen} 1px, transparent 1px),
+                           linear-gradient(90deg, ${ARCADE_COLORS.matrixGreen} 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }}
+      />
+
+      {/* HP Bars */}
+      <div className="relative z-10 mb-8">
+        <div className="grid grid-cols-2 gap-8">
+          {/* User HP */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold" style={{ color: '#FFFFFF' }}>YOU</span>
+              <span className="font-bold" style={{ color: ARCADE_COLORS.matrixGreen }}>
+                {Math.max(0, userHP)}%
+              </span>
+            </div>
+            <div 
+              className="h-4 rounded-full overflow-hidden"
+              style={{ background: ARCADE_COLORS.darkGray }}
+            >
+              <motion.div
+                className="h-full"
+                style={{
+                  background: `linear-gradient(90deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                  boxShadow: `0 0 10px ${ARCADE_COLORS.matrixGreen}`
+                }}
+                initial={{ width: '100%' }}
+                animate={{ width: `${Math.max(0, userHP)}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+          </div>
+
+          {/* Opponent HP */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold" style={{ color: '#FFFFFF' }}>OPPONENT</span>
+              <span className="font-bold" style={{ color: ARCADE_COLORS.bloodyRed }}>
+                {Math.max(0, opponentHP)}%
+              </span>
+            </div>
+            <div 
+              className="h-4 rounded-full overflow-hidden"
+              style={{ background: ARCADE_COLORS.darkGray }}
+            >
+              <motion.div
+                className="h-full"
+                style={{
+                  background: `linear-gradient(90deg, ${ARCADE_COLORS.bloodyRed}, #FF6B6B)`,
+                  boxShadow: `0 0 10px ${ARCADE_COLORS.bloodyRed}`
+                }}
+                initial={{ width: '100%' }}
+                animate={{ width: `${Math.max(0, opponentHP)}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Battle Arena */}
+      <div className="relative h-48 mb-6">
+        <div className="absolute inset-0 flex items-center justify-between px-12">
+          {/* User Zombie */}
+          <motion.div
+            animate={{
+              scale: showAttack === 'user' ? [1, 1.3, 1] : 1,
+              x: showAttack === 'user' ? [0, 50, 0] : 0,
+            }}
+            transition={{ duration: 0.5 }}
+            className="relative"
+          >
+            <div 
+              className="text-8xl"
+              style={{
+                filter: showAttack === 'user' ? `drop-shadow(0 0 20px ${ARCADE_COLORS.matrixGreen})` : 'none'
+              }}
+            >
+              🧟
+            </div>
+            {showAttack === 'user' && (
+              <motion.div
+                initial={{ opacity: 1, scale: 0.5 }}
+                animate={{ opacity: 0, scale: 2 }}
+                className="absolute inset-0"
+                style={{
+                  background: `radial-gradient(circle, ${ARCADE_COLORS.matrixGreen}80 0%, transparent 70%)`,
+                }}
+              />
+            )}
+          </motion.div>
+
+          {/* VS Indicator */}
+          <motion.div
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className="text-4xl font-bold"
+            style={{ 
+              color: ARCADE_COLORS.bloodyRed,
+              textShadow: `0 0 20px ${ARCADE_COLORS.bloodyRed}`
+            }}
+          >
+            ⚔️
+          </motion.div>
+
+          {/* Opponent Zombie */}
+          <motion.div
+            animate={{
+              scale: showAttack === 'opponent' ? [1, 1.3, 1] : 1,
+              x: showAttack === 'opponent' ? [0, -50, 0] : 0,
+            }}
+            transition={{ duration: 0.5 }}
+            className="relative"
+          >
+            <div 
+              className="text-8xl"
+              style={{
+                filter: showAttack === 'opponent' ? `drop-shadow(0 0 20px ${ARCADE_COLORS.bloodyRed})` : 'none',
+                transform: 'scaleX(-1)'
+              }}
+            >
+              🧟
+            </div>
+            {showAttack === 'opponent' && (
+              <motion.div
+                initial={{ opacity: 1, scale: 0.5 }}
+                animate={{ opacity: 0, scale: 2 }}
+                className="absolute inset-0"
+                style={{
+                  background: `radial-gradient(circle, ${ARCADE_COLORS.bloodyRed}80 0%, transparent 70%)`,
+                }}
+              />
+            )}
+          </motion.div>
+        </div>
+
+        {/* Damage Numbers */}
+        <AnimatePresence>
+          {damageNumbers.map((dmg) => (
+            <motion.div
+              key={dmg.id}
+              initial={{ 
+                opacity: 1, 
+                y: 0, 
+                x: dmg.attacker === 'user' ? '60%' : '40%',
+                scale: 1 
+              }}
+              animate={{ 
+                opacity: 0, 
+                y: -100, 
+                scale: 2 
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1 }}
+              className="absolute top-1/2 font-bold text-4xl"
+              style={{ 
+                color: dmg.attacker === 'user' ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.bloodyRed,
+                textShadow: `0 0 20px ${dmg.attacker === 'user' ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.bloodyRed}`,
+                left: '50%',
+                transform: 'translateX(-50%)'
+              }}
+            >
+              -{dmg.damage}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Combat Log */}
+      <div 
+        className="rounded-lg p-4"
+        style={{
+          background: `${ARCADE_COLORS.darkGray}80`,
+          border: `1px solid ${ARCADE_COLORS.matrixGreen}40`,
+          maxHeight: '120px',
+          overflowY: 'auto'
+        }}
+      >
+        <div className="space-y-2">
+          {combatLog.length === 0 ? (
+            <p className="text-sm text-center" style={{ color: '#FFFFFF', opacity: 0.6 }}>
+              Complete milestones to attack!
+            </p>
+          ) : (
+            combatLog.map((log) => (
+              <motion.p
+                key={log.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-sm font-bold"
+                style={{ 
+                  color: log.attacker === 'user' ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.bloodyRed 
+                }}
+              >
+                {log.message}
+              </motion.p>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Victory/Defeat Overlay */}
+      {userHP <= 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            background: `${ARCADE_COLORS.black}E6`,
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <div className="text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", duration: 0.5 }}
+            >
+              <Skull 
+                className="w-32 h-32 mx-auto mb-4"
+                style={{ color: ARCADE_COLORS.bloodyRed }}
+              />
+              <h2 
+                className="text-6xl font-bold mb-4"
+                style={{ 
+                  color: ARCADE_COLORS.bloodyRed,
+                  textShadow: `0 0 30px ${ARCADE_COLORS.bloodyRed}`
+                }}
+              >
+                DEFEATED
+              </h2>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+
+      {opponentHP <= 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            background: `${ARCADE_COLORS.black}E6`,
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <div className="text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", duration: 0.5 }}
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                ⭐
+              </motion.div>
+              <h2 
+                className="text-6xl font-bold mb-4"
+                style={{ 
+                  color: ARCADE_COLORS.matrixGreen,
+                  textShadow: `0 0 30px ${ARCADE_COLORS.matrixGreen}`
+                }}
+              >
+                VICTORY!
+              </h2>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
