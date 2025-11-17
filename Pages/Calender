@@ -1,0 +1,437 @@
+
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { CalendarClock, Plus, X, Zap, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ARCADE_COLORS } from "../components/zombie/ThemePalettes";
+
+export default function CalendarPage() {
+  const [user, setUser] = useState(null);
+  const [showPlanDialog, setShowPlanDialog] = useState(false);
+  const [schedule, setSchedule] = useState(null);
+  const [planData, setPlanData] = useState({
+    mainGoal: "",
+    commitments: [],
+    preferredWindow: "",
+    totalHours: 4
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => base44.entities.Task.list('-priority_score'),
+    initialData: []
+  });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+      setPlanData(prev => ({
+        ...prev,
+        preferredWindow: userData.energy_peak || "afternoon"
+      }));
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const addCommitment = () => {
+    setPlanData(prev => ({
+      ...prev,
+      commitments: [...prev.commitments, { title: "", start: "", end: "" }]
+    }));
+  };
+
+  const removeCommitment = (index) => {
+    setPlanData(prev => ({
+      ...prev,
+      commitments: prev.commitments.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateCommitment = (index, field, value) => {
+    setPlanData(prev => ({
+      ...prev,
+      commitments: prev.commitments.map((c, i) => 
+        i === index ? { ...c, [field]: value } : c
+      )
+    }));
+  };
+
+  const generateSchedule = async () => {
+    const slots = [];
+    const startHour = planData.preferredWindow === "morning" ? 8 : 
+                     planData.preferredWindow === "afternoon" ? 13 :
+                     planData.preferredWindow === "evening" ? 17 : 20;
+    
+    let currentHour = startHour;
+    let currentMinute = 0; // Initialize minutes
+    const focusLength = (user?.focus_length_minutes || 50) / 60; // in hours
+    const hoursAvailable = planData.totalHours;
+
+    const priorityTasks = tasks
+      .filter(t => t.status !== 'done')
+      .sort((a, b) => {
+        let scoreA = (b.priority_score || 0);
+        let scoreB = (a.priority_score || 0);
+        
+        if (a.zombie?.state === 'zombie') scoreA += 0.3;
+        if (b.zombie?.state === 'zombie') scoreB += 0.3;
+        
+        if (a.quadrant === 'urgent_important') scoreA += 0.1;
+        if (b.quadrant === 'urgent_important') scoreB += 0.1;
+        
+        return scoreB - scoreA;
+      });
+
+    let taskIndex = 0;
+    let totalAssigned = 0;
+
+    while (totalAssigned < hoursAvailable && taskIndex < priorityTasks.length) {
+      const task = priorityTasks[taskIndex];
+      const duration = Math.min(focusLength, hoursAvailable - totalAssigned); // duration in hours
+      
+      const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+      
+      slots.push({
+        time: timeString,
+        duration: duration * 60, // Convert duration to minutes for storage
+        task: task,
+        type: "focus",
+        isZombie: task.zombie?.state === 'zombie'
+      });
+
+      // Update current time for the next slot
+      currentMinute += Math.round(duration * 60); // Add duration in minutes
+      while (currentMinute >= 60) {
+        currentHour++;
+        currentMinute -= 60;
+      }
+      
+      totalAssigned += duration;
+
+      // Add break after 2 focus blocks
+      if ((taskIndex + 1) % 2 === 0 && totalAssigned < hoursAvailable) {
+        const breakTimeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+        slots.push({
+          time: breakTimeString,
+          duration: 15, // Break duration is 15 minutes
+          type: "break"
+        });
+        currentMinute += 15;
+        while (currentMinute >= 60) {
+          currentHour++;
+          currentMinute -= 60;
+        }
+      }
+
+      taskIndex++;
+    }
+
+    setSchedule(slots);
+    setShowPlanDialog(false);
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: ARCADE_COLORS.matrixGreen }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 mb-6"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div 
+                className="w-16 h-16 rounded-xl flex items-center justify-center border-2"
+                style={{
+                  background: ARCADE_COLORS.black,
+                  borderColor: ARCADE_COLORS.cyanGlow,
+                  boxShadow: `0 0 20px ${ARCADE_COLORS.cyanGlow}`
+                }}
+              >
+                <CalendarClock className="w-8 h-8" style={{ color: ARCADE_COLORS.cyanGlow }} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold neon-text">AUTO TIMETABLE</h1>
+                <p style={{ color: '#FFFFFF' }}>
+                  AI-generated daily schedule
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowPlanDialog(true)}
+              className="gap-2 font-bold"
+              style={{
+                background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.cyanGlow})`,
+                color: ARCADE_COLORS.black,
+                border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+                boxShadow: `0 0 20px ${ARCADE_COLORS.matrixGreen}`
+              }}
+            >
+              <Zap className="w-5 h-5" />
+              Plan My Day
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Schedule Display */}
+        {schedule ? (
+          <div className="space-y-3">
+            {schedule.map((slot, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className={`rounded-lg p-4 border-2 ${slot.type === 'break' ? 'opacity-60' : ''}`}
+                style={{
+                  background: slot.isZombie 
+                    ? `${ARCADE_COLORS.bloodyRed}20` 
+                    : slot.type === 'break'
+                      ? `${ARCADE_COLORS.darkGray}`
+                      : ARCADE_COLORS.black,
+                  borderColor: slot.isZombie 
+                    ? ARCADE_COLORS.bloodyRed 
+                    : slot.type === 'break'
+                      ? ARCADE_COLORS.darkGray
+                      : ARCADE_COLORS.matrixGreen,
+                  boxShadow: slot.isZombie 
+                    ? `0 0 20px ${ARCADE_COLORS.bloodyRed}` 
+                    : `0 0 10px ${ARCADE_COLORS.matrixGreen}33`,
+                  animation: slot.isZombie ? 'infectionPulse 2s infinite' : 'none'
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="font-bold text-2xl"
+                      style={{ color: ARCADE_COLORS.cyanGlow }}
+                    >
+                      {slot.time}
+                    </div>
+                    <div>
+                      {slot.type === 'break' ? (
+                        <p style={{ color: '#FFFFFF' }}>
+                          ☕ BREAK TIME ({Math.round(slot.duration)}min)
+                        </p>
+                      ) : (
+                        <>
+                          <p 
+                            className="font-bold"
+                            style={{ color: slot.isZombie ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.matrixGreen }}
+                          >
+                            {slot.isZombie && '🧟 '}{slot.task?.title}
+                          </p>
+                          <p 
+                            className="text-sm"
+                            style={{ color: '#FFFFFF' }}
+                          >
+                            {Math.round(slot.duration)} minutes • {slot.task?.quadrant?.replace(/_/g, ' ')}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {slot.type === 'focus' && (
+                    <Button
+                      className="font-bold"
+                      style={{
+                        background: ARCADE_COLORS.matrixGreen,
+                        color: ARCADE_COLORS.black
+                      }}
+                    >
+                      Start Focus
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card rounded-2xl p-12 text-center"
+          >
+            <CalendarClock 
+              className="w-20 h-20 mx-auto mb-6"
+              style={{ color: ARCADE_COLORS.cyanGlow }}
+            />
+            <h2 
+              className="text-2xl font-bold mb-3"
+              style={{ color: ARCADE_COLORS.matrixGreen }}
+            >
+              NO SCHEDULE YET
+            </h2>
+            <p 
+              className="mb-6"
+              style={{ color: '#FFFFFF' }}
+            >
+              Click "Plan My Day" to auto-generate your timetable
+            </p>
+          </motion.div>
+        )}
+
+        {/* Plan Dialog */}
+        <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
+          <DialogContent 
+            className="max-w-2xl"
+            style={{
+              background: ARCADE_COLORS.black,
+              border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+              boxShadow: `0 0 40px ${ARCADE_COLORS.matrixGreen}`
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle 
+                className="text-2xl font-bold neon-text"
+              >
+                Plan Today — What do you want to achieve?
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              <div>
+                <Label style={{ color: '#FFFFFF' }}>
+                  Main Goal for Today (one sentence)
+                </Label>
+                <Input
+                  value={planData.mainGoal}
+                  onChange={(e) => setPlanData({ ...planData, mainGoal: e.target.value })}
+                  placeholder="e.g., Finish History essay draft"
+                  className="mt-2"
+                  style={{
+                    background: ARCADE_COLORS.darkGray,
+                    border: `1px solid ${ARCADE_COLORS.matrixGreen}`,
+                    color: '#FFFFFF'
+                  }}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label style={{ color: '#FFFFFF' }}>
+                    Other commitments (not tasks)
+                  </Label>
+                  <Button
+                    onClick={addCommitment}
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
+                    style={{
+                      borderColor: ARCADE_COLORS.matrixGreen,
+                      color: '#FFFFFF'
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add
+                  </Button>
+                </div>
+                
+                {planData.commitments.map((commitment, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder="Title"
+                      value={commitment.title}
+                      onChange={(e) => updateCommitment(idx, 'title', e.target.value)}
+                      style={{
+                        background: ARCADE_COLORS.darkGray,
+                        border: `1px solid ${ARCADE_COLORS.matrixGreen}40`,
+                        color: '#FFFFFF'
+                      }}
+                    />
+                    <Input
+                      type="time"
+                      value={commitment.start}
+                      onChange={(e) => updateCommitment(idx, 'start', e.target.value)}
+                      style={{
+                        background: ARCADE_COLORS.darkGray,
+                        border: `1px solid ${ARCADE_COLORS.matrixGreen}40`,
+                        color: '#FFFFFF'
+                      }}
+                    />
+                    <Input
+                      type="time"
+                      value={commitment.end}
+                      onChange={(e) => updateCommitment(idx, 'end', e.target.value)}
+                      style={{
+                        background: ARCADE_COLORS.darkGray,
+                        border: `1px solid ${ARCADE_COLORS.matrixGreen}40`,
+                        color: '#FFFFFF'
+                      }}
+                    />
+                    <Button
+                      onClick={() => removeCommitment(idx)}
+                      size="sm"
+                      variant="ghost"
+                      style={{ color: ARCADE_COLORS.bloodyRed }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <Label style={{ color: '#FFFFFF' }}>
+                  Total hours you plan to study/work today
+                </Label>
+                <Input
+                  type="number"
+                  value={planData.totalHours}
+                  onChange={(e) => setPlanData({ ...planData, totalHours: parseInt(e.target.value) })}
+                  min={1}
+                  max={12}
+                  className="mt-2"
+                  style={{
+                    background: ARCADE_COLORS.darkGray,
+                    border: `1px solid ${ARCADE_COLORS.matrixGreen}`,
+                    color: '#FFFFFF'
+                  }}
+                />
+              </div>
+
+              <Button
+                onClick={generateSchedule}
+                className="w-full py-6 font-bold text-lg"
+                style={{
+                  background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.cyanGlow})`,
+                  color: ARCADE_COLORS.black,
+                  border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+                  boxShadow: `0 0 30px ${ARCADE_COLORS.matrixGreen}`
+                }}
+              >
+                Create My Timetable
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+}
