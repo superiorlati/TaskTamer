@@ -1,0 +1,46 @@
+{
+  "name": "RandomEncounter",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "encounter_type": {
+      "type": "string",
+      "enum": [
+        "micro_task",
+        "bonus_challenge",
+        "jump_scare",
+        "gift"
+      ],
+      "default": "micro_task"
+    },
+    "zombie_type": {
+      "type": "string",
+      "default": "wanderer"
+    },
+    "task_prompt": {
+      "type": "string",
+      "default": ""
+    },
+    "xp_reward": {
+      "type": "number",
+      "default": 25
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "failed": {
+      "type": "boolean",
+      "default": false
+    },
+    "appeared_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id"
+  ]
+}
