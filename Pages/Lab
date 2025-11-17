@@ -1,0 +1,507 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Beaker, Zap, Sparkles, Package } from "lucide-react";
+import { ARCADE_COLORS } from "../components/zombie/ThemePalettes";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PERSONALITY_TYPES } from "../components/zombie/ZombiePersonality";
+import MutationSkillTree from "../components/lab/MutationSkillTree";
+import PrestigeModal from "../components/lab/PrestigeModal";
+
+const CURE_STAGES = [
+  { id: 0, name: "Rotting", color: ARCADE_COLORS.bloodyRed, emoji: "💀" },
+  { id: 25, name: "Sick", color: "#FF6B6B", emoji: "🤢" },
+  { id: 50, name: "Stable", color: ARCADE_COLORS.cyanGlow, emoji: "😐" },
+  { id: 75, name: "Recovering", color: ARCADE_COLORS.radioactiveGreen, emoji: "😊" },
+  { id: 100, name: "Cured!", color: ARCADE_COLORS.matrixGreen, emoji: "✨" }
+];
+
+export default function LabPage() {
+  const [user, setUser] = useState(null);
+  const [showCreator, setShowCreator] = useState(false);
+  const [showPrestige, setShowPrestige] = useState(false);
+  const [newZombie, setNewZombie] = useState({
+    name: "",
+    personality: "feral_biter"
+  });
+  const queryClient = useQueryClient();
+
+  const { data: profile } = useQuery({
+    queryKey: ['zombieProfile'],
+    queryFn: async () => {
+      const profiles = await base44.entities.ZombieProfile.filter({ user_id: user?.id });
+      return profiles[0];
+    },
+    enabled: !!user,
+    initialData: null
+  });
+
+  const { data: materials = [] } = useQuery({
+    queryKey: ['materials'],
+    queryFn: async () => {
+      const mats = await base44.entities.CraftingMaterial.filter({ user_id: user?.id });
+      return mats;
+    },
+    enabled: !!user,
+    initialData: []
+  });
+
+  const { data: mutations = [] } = useQuery({
+    queryKey: ['mutations'],
+    queryFn: async () => {
+      const nodes = await base44.entities.MutationNode.filter({ user_id: user?.id });
+      return nodes;
+    },
+    enabled: !!user,
+    initialData: []
+  });
+
+  const createProfileMutation = useMutation({
+    mutationFn: async (data) => {
+      return await base44.entities.ZombieProfile.create({
+        user_id: user.id,
+        name: data.name,
+        personality: data.personality,
+        mood: "stable",
+        appearance_level: 5,
+        power_level: 1,
+        evolution_stage: 1,
+        fighting_style: "aggressive",
+        cure_progress: 0
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['zombieProfile'] });
+      setShowCreator(false);
+    }
+  });
+
+  const cureMutation = useMutation({
+    mutationFn: async (amount) => {
+      const newProgress = Math.min(100, profile.cure_progress + amount);
+      await base44.entities.ZombieProfile.update(profile.id, {
+        cure_progress: newProgress
+      });
+      
+      if (newProgress >= 100 && profile.cure_progress < 100) {
+        setShowPrestige(true);
+      }
+      
+      return newProgress;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['zombieProfile'] });
+    }
+  });
+
+  const unlockMutationMutation = useMutation({
+    mutationFn: async (node) => {
+      // Deduct materials
+      const totalMats = materials.reduce((sum, m) => sum + m.quantity, 0);
+      if (totalMats < node.cost) return;
+      
+      // Create mutation node
+      await base44.entities.MutationNode.create({
+        user_id: user.id,
+        node_id: node.id,
+        node_type: node.type,
+        name: node.name,
+        description: `Unlocked ${node.name}`,
+        unlocked: true,
+        cost: node.cost
+      });
+      
+      // Deduct materials (simplified - just reduce first material)
+      if (materials.length > 0) {
+        const mat = materials[0];
+        const newQty = Math.max(0, mat.quantity - node.cost);
+        if (newQty > 0) {
+          await base44.entities.CraftingMaterial.update(mat.id, { quantity: newQty });
+        } else {
+          await base44.entities.CraftingMaterial.delete(mat.id);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mutations'] });
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+    }
+  });
+
+  const prestigeMutation = useMutation({
+    mutationFn: async () => {
+      const currentSeason = profile.evolution_stage || 1;
+      
+      // Create prestige badge
+      await base44.entities.PrestigeBadge.create({
+        user_id: user.id,
+        season: currentSeason,
+        badge_type: "cure_master",
+        permanent_bonus: "+20% XP",
+        earned_at: new Date().toISOString()
+      });
+      
+      // Evolve zombie
+      await base44.entities.ZombieProfile.update(profile.id, {
+        cure_progress: 0,
+        evolution_stage: currentSeason + 1,
+        power_level: 1,
+        appearance_level: 5
+      });
+      
+      // Update user XP multiplier
+      const currentMultiplier = user.xp_multiplier || 1;
+      await base44.auth.updateMe({
+        xp_multiplier: currentMultiplier + 0.2
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['zombieProfile'] });
+      setShowPrestige(false);
+    }
+  });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const getCurrentStage = () => {
+    if (!profile) return CURE_STAGES[0];
+    return CURE_STAGES.reduce((prev, curr) => 
+      profile.cure_progress >= curr.id ? curr : prev
+    );
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" 
+          style={{ borderColor: ARCADE_COLORS.matrixGreen }} />
+      </div>
+    );
+  }
+
+  const currentStage = getCurrentStage();
+  const totalMaterials = materials.reduce((sum, m) => sum + m.quantity, 0);
+  const unlockedNodeIds = mutations.filter(m => m.unlocked).map(m => m.node_id);
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 mb-6"
+        >
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div 
+                className="w-16 h-16 rounded-xl flex items-center justify-center border-2"
+                style={{
+                  background: ARCADE_COLORS.black,
+                  borderColor: ARCADE_COLORS.radioactiveGreen,
+                  boxShadow: `0 0 20px ${ARCADE_COLORS.radioactiveGreen}`
+                }}
+              >
+                <Beaker className="w-8 h-8" style={{ color: ARCADE_COLORS.radioactiveGreen }} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold neon-text">ZOMBIE CURE LABORATORY</h1>
+                <p style={{ color: '#FFFFFF' }}>
+                  Research and heal your zombie companion
+                </p>
+              </div>
+            </div>
+            
+            {/* Materials counter */}
+            <div 
+              className="flex items-center gap-2 px-4 py-2 rounded-lg"
+              style={{
+                background: `${ARCADE_COLORS.radioactiveGreen}20`,
+                border: `2px solid ${ARCADE_COLORS.radioactiveGreen}`
+              }}
+            >
+              <Package className="w-5 h-5" style={{ color: ARCADE_COLORS.radioactiveGreen }} />
+              <span className="font-bold" style={{ color: '#FFFFFF' }}>
+                {totalMaterials} Materials
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {!profile && !showCreator && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card rounded-2xl p-12 text-center"
+          >
+            <div className="text-8xl mb-6">🧪</div>
+            <h2 className="text-2xl font-bold neon-text mb-4">CREATE YOUR ZOMBIE</h2>
+            <p className="mb-6" style={{ color: '#FFFFFF' }}>
+              Every productivity warrior needs a zombie companion!
+            </p>
+            <Button
+              onClick={() => setShowCreator(true)}
+              className="font-bold"
+              style={{
+                background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                color: ARCADE_COLORS.black
+              }}
+            >
+              <Sparkles className="w-5 h-5 mr-2" />
+              Begin Creation
+            </Button>
+          </motion.div>
+        )}
+
+        {showCreator && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-2xl p-8"
+          >
+            <h2 className="text-2xl font-bold neon-text mb-6">CUSTOMIZE YOUR ZOMBIE</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block mb-2 font-bold" style={{ color: '#FFFFFF' }}>
+                  Zombie Name
+                </label>
+                <Input
+                  value={newZombie.name}
+                  onChange={(e) => setNewZombie({ ...newZombie, name: e.target.value })}
+                  placeholder="Enter a name..."
+                  className="text-lg"
+                  style={{
+                    background: ARCADE_COLORS.darkGray,
+                    border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+                    color: '#FFFFFF'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="block mb-2 font-bold" style={{ color: '#FFFFFF' }}>
+                  Personality Type
+                </label>
+                <Select
+                  value={newZombie.personality}
+                  onValueChange={(value) => setNewZombie({ ...newZombie, personality: value })}
+                >
+                  <SelectTrigger
+                    style={{
+                      background: ARCADE_COLORS.darkGray,
+                      border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+                      color: '#FFFFFF'
+                    }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PERSONALITY_TYPES).map(([key, type]) => (
+                      <SelectItem key={key} value={key}>
+                        {type.emoji} {type.name} - {type.description}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowCreator(false)}
+                  variant="outline"
+                  className="flex-1 font-bold"
+                  style={{
+                    borderColor: ARCADE_COLORS.matrixGreen,
+                    color: '#FFFFFF'
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => createProfileMutation.mutate(newZombie)}
+                  disabled={!newZombie.name}
+                  className="flex-1 font-bold"
+                  style={{
+                    background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                    color: ARCADE_COLORS.black
+                  }}
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  Create Zombie
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {profile && (
+          <Tabs defaultValue="cure" className="w-full">
+            <TabsList className="w-full mb-6">
+              <TabsTrigger value="cure" className="flex-1">Cure Progress</TabsTrigger>
+              <TabsTrigger value="mutations" className="flex-1">Mutation Tree</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="cure">
+              <div className="space-y-6">
+                {/* Cure Progress */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card rounded-2xl p-8 relative overflow-hidden"
+                >
+                  {/* Bubbling background */}
+                  <div className="absolute inset-0 opacity-10">
+                    {[...Array(10)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute w-4 h-4 rounded-full"
+                        style={{
+                          background: ARCADE_COLORS.radioactiveGreen,
+                          left: `${Math.random() * 100}%`,
+                          bottom: -20
+                        }}
+                        animate={{
+                          y: [-20, -400],
+                          opacity: [1, 0]
+                        }}
+                        transition={{
+                          duration: 3 + Math.random() * 2,
+                          repeat: Infinity,
+                          delay: Math.random() * 3
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="relative z-10">
+                    <h2 className="text-2xl font-bold neon-text mb-6">CURE PROGRESS</h2>
+                    
+                    {/* Zombie silhouette */}
+                    <div className="flex items-center justify-center mb-8">
+                      <motion.div
+                        animate={{
+                          filter: `drop-shadow(0 0 ${20 + profile.cure_progress/5}px ${currentStage.color})`
+                        }}
+                        className="text-9xl"
+                      >
+                        {currentStage.emoji}
+                      </motion.div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold" style={{ color: '#FFFFFF' }}>
+                          {currentStage.name}
+                        </span>
+                        <span className="font-bold" style={{ color: currentStage.color }}>
+                          {profile.cure_progress}%
+                        </span>
+                      </div>
+                      <div className="h-6 rounded-full overflow-hidden" style={{ background: ARCADE_COLORS.darkGray }}>
+                        <motion.div
+                          className="h-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${currentStage.color}, ${ARCADE_COLORS.matrixGreen})`,
+                            boxShadow: `0 0 20px ${currentStage.color}`
+                          }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${profile.cure_progress}%` }}
+                          transition={{ duration: 1 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Cure actions */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        onClick={() => cureMutation.mutate(10)}
+                        disabled={profile.cure_progress >= 100}
+                        className="font-bold"
+                        style={{
+                          background: ARCADE_COLORS.radioactiveGreen,
+                          color: ARCADE_COLORS.black
+                        }}
+                      >
+                        <Beaker className="w-5 h-5 mr-2" />
+                        Apply Cure (+10%)
+                      </Button>
+                      <Button
+                        onClick={() => cureMutation.mutate(25)}
+                        disabled={profile.cure_progress >= 100}
+                        className="font-bold"
+                        style={{
+                          background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                          color: ARCADE_COLORS.black
+                        }}
+                      >
+                        <Zap className="w-5 h-5 mr-2" />
+                        Power Cure (+25%)
+                      </Button>
+                    </div>
+
+                    {profile.cure_progress >= 100 && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mt-6 p-4 rounded-lg text-center"
+                        style={{
+                          background: `${ARCADE_COLORS.matrixGreen}30`,
+                          border: `2px solid ${ARCADE_COLORS.matrixGreen}`
+                        }}
+                      >
+                        <h3 className="text-2xl font-bold neon-text mb-2">🎉 FULLY CURED! 🎉</h3>
+                        <p style={{ color: '#FFFFFF' }}>
+                          Your zombie is at peak performance! Ready to prestige?
+                        </p>
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="mutations">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card rounded-2xl p-6"
+              >
+                <h2 className="text-2xl font-bold neon-text mb-6">MUTATION SKILL TREE</h2>
+                <MutationSkillTree
+                  unlockedNodes={unlockedNodeIds}
+                  materials={totalMaterials}
+                  onUnlock={(node) => unlockMutationMutation.mutate(node)}
+                />
+              </motion.div>
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+
+      {/* Prestige Modal */}
+      {showPrestige && (
+        <PrestigeModal
+          onPrestige={() => prestigeMutation.mutate()}
+          onCancel={() => setShowPrestige(false)}
+          currentSeason={profile?.evolution_stage || 1}
+        />
+      )}
+    </div>
+  );
+}
