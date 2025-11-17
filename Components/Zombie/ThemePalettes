@@ -1,0 +1,240 @@
+/**
+ * RETRO ARCADE ZOMBIE THEME - Black + Toxic Green
+ * Exact color specifications per requirements
+ */
+
+export const ARCADE_COLORS = {
+  black: "#000000",
+  matrixGreen: "#00FF41",
+  radioactiveGreen: "#0AFF72",
+  cyanGlow: "#0BFFDA",
+  bloodyRed: "#FF0033",
+  darkGray: "#1A1A1A"
+};
+
+export const INTENSITY_LEVELS = [
+  {
+    value: 1,
+    label: "Cute",
+    description: "Plushie zombies, no gore, bright neon green",
+    zombieStyle: "plushie",
+    fogIntensity: 0.1,
+    glitchLevel: 0,
+    soundSeverity: "none"
+  },
+  {
+    value: 2,
+    label: "Silly / Comic",
+    description: "Goofy animations, cartoon slime, soft attacks",
+    zombieStyle: "cartoon",
+    fogIntensity: 0.2,
+    glitchLevel: 1,
+    soundSeverity: "soft"
+  },
+  {
+    value: 3,
+    label: "Arcade Classic",
+    description: "Pixel zombies, 8-bit SFX, retro CRT distortion",
+    zombieStyle: "pixel",
+    fogIntensity: 0.4,
+    glitchLevel: 2,
+    soundSeverity: "medium"
+  },
+  {
+    value: 4,
+    label: "Scary",
+    description: "Realistic textures, lurching animations, dark fog",
+    zombieStyle: "realistic",
+    fogIntensity: 0.6,
+    glitchLevel: 3,
+    soundSeverity: "high"
+  },
+  {
+    value: 5,
+    label: "Nightmare",
+    description: "Hyper-detailed zombies, glitch horror, heavy fog",
+    zombieStyle: "horror",
+    fogIntensity: 0.9,
+    glitchLevel: 5,
+    soundSeverity: "extreme"
+  }
+];
+
+/**
+ * Get background style based on intensity
+ */
+export function getArcadeBackground(intensity, reducedMotion = false) {
+  const level = INTENSITY_LEVELS.find(l => l.value === intensity) || INTENSITY_LEVELS[2];
+  
+  const baseStyle = {
+    background: ARCADE_COLORS.black,
+    position: 'relative',
+    overflow: 'hidden'
+  };
+
+  const fogOpacity = level.fogIntensity;
+  const glitchIntensity = level.glitchLevel;
+
+  if (intensity === 1) {
+    return {
+      ...baseStyle,
+      background: `radial-gradient(circle at center, ${ARCADE_COLORS.darkGray} 0%, ${ARCADE_COLORS.black} 100%)`,
+      boxShadow: `inset 0 0 100px ${ARCADE_COLORS.matrixGreen}22`
+    };
+  }
+
+  if (intensity === 2) {
+    return {
+      ...baseStyle,
+      background: `linear-gradient(180deg, ${ARCADE_COLORS.black} 0%, ${ARCADE_COLORS.darkGray} 100%)`,
+      boxShadow: `inset 0 0 150px ${ARCADE_COLORS.radioactiveGreen}33`
+    };
+  }
+
+  if (intensity === 3) {
+    return {
+      ...baseStyle,
+      background: ARCADE_COLORS.black,
+      boxShadow: `inset 0 0 200px ${ARCADE_COLORS.matrixGreen}44`,
+      filter: reducedMotion ? 'none' : 'contrast(1.2)'
+    };
+  }
+
+  if (intensity === 4) {
+    return {
+      ...baseStyle,
+      background: `radial-gradient(ellipse at bottom, ${ARCADE_COLORS.darkGray} 0%, ${ARCADE_COLORS.black} 70%)`,
+      boxShadow: `inset 0 0 300px ${ARCADE_COLORS.bloodyRed}22`,
+      filter: reducedMotion ? 'none' : 'contrast(1.3) brightness(0.9)'
+    };
+  }
+
+  // Nightmare
+  return {
+    ...baseStyle,
+    background: ARCADE_COLORS.black,
+    boxShadow: `inset 0 0 400px ${ARCADE_COLORS.bloodyRed}44, inset 0 0 200px ${ARCADE_COLORS.matrixGreen}33`,
+    filter: reducedMotion ? 'none' : 'contrast(1.4) brightness(0.85)'
+  };
+}
+
+/**
+ * CRT Scanline overlay CSS
+ */
+export function getCRTOverlayCSS() {
+  return `
+    .crt-overlay {
+      pointer-events: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15),
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      z-index: 9999;
+      opacity: 0.3;
+    }
+
+    .crt-flicker {
+      animation: flicker 0.15s infinite;
+    }
+
+    @keyframes flicker {
+      0% { opacity: 0.97; }
+      50% { opacity: 1; }
+      100% { opacity: 0.98; }
+    }
+  `;
+}
+
+/**
+ * Zombie infection visual styles
+ */
+export function getInfectionStyles(threatLevel = 0) {
+  const colors = {
+    0: ARCADE_COLORS.matrixGreen,
+    1: ARCADE_COLORS.radioactiveGreen,
+    2: ARCADE_COLORS.cyanGlow,
+    3: ARCADE_COLORS.bloodyRed
+  };
+
+  const color = colors[Math.min(threatLevel, 3)];
+
+  return {
+    border: `2px solid ${color}`,
+    boxShadow: `0 0 20px ${color}, inset 0 0 10px ${color}33`,
+    animation: 'infectionPulse 2s ease-in-out infinite'
+  };
+}
+
+/**
+ * Animation keyframes for arcade effects
+ */
+export function getArcadeAnimations() {
+  return `
+    @keyframes infectionPulse {
+      0%, 100% { 
+        box-shadow: 0 0 20px ${ARCADE_COLORS.matrixGreen}, inset 0 0 10px ${ARCADE_COLORS.matrixGreen}33;
+      }
+      50% { 
+        box-shadow: 0 0 40px ${ARCADE_COLORS.matrixGreen}, inset 0 0 20px ${ARCADE_COLORS.matrixGreen}66;
+      }
+    }
+
+    @keyframes zombieWalk {
+      0% { transform: translateX(-100px); }
+      100% { transform: translateX(calc(100vw + 100px)); }
+    }
+
+    @keyframes glitchShake {
+      0%, 100% { transform: translate(0, 0); }
+      10% { transform: translate(-2px, 2px); }
+      20% { transform: translate(2px, -2px); }
+      30% { transform: translate(-2px, -2px); }
+      40% { transform: translate(2px, 2px); }
+      50% { transform: translate(-2px, 2px); }
+      60% { transform: translate(2px, -2px); }
+      70% { transform: translate(-2px, -2px); }
+      80% { transform: translate(2px, 2px); }
+      90% { transform: translate(-2px, 2px); }
+    }
+
+    @keyframes xpFloat {
+      0% { 
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+      100% { 
+        transform: translateY(-100px) scale(1.5);
+        opacity: 0;
+      }
+    }
+
+    @keyframes arcadeFlash {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    @keyframes infectSpread {
+      0% { 
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% { 
+        transform: scale(3);
+        opacity: 0;
+      }
+    }
+
+    @keyframes victoryBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-20px) scale(1.2); }
+    }
+  `;
+}
