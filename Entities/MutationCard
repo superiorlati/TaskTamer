@@ -1,0 +1,61 @@
+{
+  "name": "MutationCard",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "rarity": {
+      "type": "string",
+      "enum": [
+        "common",
+        "uncommon",
+        "rare",
+        "epic",
+        "legendary"
+      ],
+      "default": "common"
+    },
+    "card_type": {
+      "type": "string",
+      "enum": [
+        "cosmetic",
+        "booster",
+        "story",
+        "emote"
+      ],
+      "default": "cosmetic"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "visual_asset": {
+      "type": "string"
+    },
+    "drop_source": {
+      "type": "string",
+      "enum": [
+        "taskCompletion",
+        "zombieCure",
+        "duelWin",
+        "dailyChest"
+      ],
+      "default": "taskCompletion"
+    },
+    "is_equipped": {
+      "type": "boolean",
+      "default": false
+    },
+    "boost_value": {
+      "type": "number",
+      "description": "For booster cards, the boost percentage"
+    }
+  },
+  "required": [
+    "user_id",
+    "name"
+  ]
+}
