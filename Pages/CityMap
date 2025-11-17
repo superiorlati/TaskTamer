@@ -1,0 +1,301 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Map, AlertTriangle } from "lucide-react";
+import { ARCADE_COLORS } from "../components/zombie/ThemePalettes";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+const DISTRICTS = [
+  { id: "work_zone", name: "Work Zone", emoji: "💼", x: 100, y: 150, category: "urgent_important" },
+  { id: "health_sector", name: "Health Sector", emoji: "🏥", x: 300, y: 100, category: "not_urgent_important" },
+  { id: "learning_district", name: "Learning District", emoji: "📚", x: 500, y: 150, category: "not_urgent_important" },
+  { id: "social_hub", name: "Social Hub", emoji: "👥", x: 200, y: 300, category: "urgent_not_important" },
+  { id: "home_base", name: "Home Base", emoji: "🏠", x: 400, y: 280, category: "not_urgent_not_important" }
+];
+
+export default function CityMapPage() {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => base44.entities.Task.list(),
+    initialData: []
+  });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const getDistrictStats = (districtCategory) => {
+    const districtTasks = tasks.filter(t => t.quadrant === districtCategory);
+    const zombies = districtTasks.filter(t => t.zombie?.state === 'zombie').length;
+    const total = districtTasks.length;
+    const infectionLevel = total > 0 ? (zombies / total) * 100 : 0;
+    const hasBoss = districtTasks.some(t => t.estimated_minutes > 180 && t.zombie?.state === 'zombie');
+    
+    return { total, zombies, infectionLevel, hasBoss };
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" 
+          style={{ borderColor: ARCADE_COLORS.matrixGreen }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 mb-6"
+        >
+          <div className="flex items-center gap-4">
+            <div 
+              className="w-16 h-16 rounded-xl flex items-center justify-center border-2"
+              style={{
+                background: ARCADE_COLORS.black,
+                borderColor: ARCADE_COLORS.cyanGlow,
+                boxShadow: `0 0 20px ${ARCADE_COLORS.cyanGlow}`
+              }}
+            >
+              <Map className="w-8 h-8" style={{ color: ARCADE_COLORS.cyanGlow }} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold neon-text">ZOMBIE CITY MAP</h1>
+              <p style={{ color: '#FFFFFF' }}>
+                Track infection across your life areas
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* City Map */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card rounded-2xl p-8 relative overflow-hidden"
+          style={{ minHeight: '500px' }}
+        >
+          {/* Grid background */}
+          <div 
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `
+                linear-gradient(${ARCADE_COLORS.matrixGreen} 1px, transparent 1px),
+                linear-gradient(90deg, ${ARCADE_COLORS.matrixGreen} 1px, transparent 1px)
+              `,
+              backgroundSize: '40px 40px'
+            }}
+          />
+
+          <svg className="absolute inset-0 w-full h-full">
+            {/* Connection lines between districts */}
+            {DISTRICTS.map((district, i) => 
+              DISTRICTS.slice(i + 1).map(other => (
+                <motion.line
+                  key={`${district.id}-${other.id}`}
+                  x1={district.x}
+                  y1={district.y}
+                  x2={other.x}
+                  y2={other.y}
+                  stroke={ARCADE_COLORS.darkGray}
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 1, delay: i * 0.1 }}
+                />
+              ))
+            )}
+          </svg>
+
+          {/* Districts */}
+          {DISTRICTS.map((district, index) => {
+            const stats = getDistrictStats(district.category);
+            const isInfected = stats.infectionLevel > 50;
+            const isCritical = stats.infectionLevel > 80;
+
+            return (
+              <motion.button
+                key={district.id}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => navigate(createPageUrl("Matrix"))}
+                className="absolute group"
+                style={{
+                  left: district.x - 60,
+                  top: district.y - 60
+                }}
+              >
+                <motion.div
+                  animate={{
+                    boxShadow: isCritical 
+                      ? [`0 0 30px ${ARCADE_COLORS.bloodyRed}`, `0 0 60px ${ARCADE_COLORS.bloodyRed}`, `0 0 30px ${ARCADE_COLORS.bloodyRed}`]
+                      : isInfected
+                      ? [`0 0 20px ${ARCADE_COLORS.radioactiveGreen}`, `0 0 40px ${ARCADE_COLORS.radioactiveGreen}`, `0 0 20px ${ARCADE_COLORS.radioactiveGreen}`]
+                      : `0 0 15px ${ARCADE_COLORS.matrixGreen}`
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-32 h-32 rounded-2xl flex flex-col items-center justify-center relative"
+                  style={{
+                    background: isCritical 
+                      ? `linear-gradient(135deg, ${ARCADE_COLORS.bloodyRed}40, ${ARCADE_COLORS.black})`
+                      : isInfected
+                      ? `linear-gradient(135deg, ${ARCADE_COLORS.radioactiveGreen}40, ${ARCADE_COLORS.black})`
+                      : `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}40, ${ARCADE_COLORS.black})`,
+                    border: `2px solid ${isCritical ? ARCADE_COLORS.bloodyRed : isInfected ? ARCADE_COLORS.radioactiveGreen : ARCADE_COLORS.matrixGreen}`
+                  }}
+                >
+                  {/* Boss indicator */}
+                  {stats.hasBoss && (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                      className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{
+                        background: ARCADE_COLORS.bloodyRed,
+                        border: `2px solid ${ARCADE_COLORS.black}`,
+                        boxShadow: `0 0 20px ${ARCADE_COLORS.bloodyRed}`
+                      }}
+                    >
+                      <AlertTriangle className="w-5 h-5" style={{ color: ARCADE_COLORS.black }} />
+                    </motion.div>
+                  )}
+
+                  <div className="text-5xl mb-2">{district.emoji}</div>
+                  <p className="text-xs font-bold text-center" style={{ color: '#FFFFFF' }}>
+                    {district.name}
+                  </p>
+                  
+                  {/* Infection bar */}
+                  <div className="w-full px-2 mt-2">
+                    <div 
+                      className="h-1 rounded-full overflow-hidden"
+                      style={{ background: ARCADE_COLORS.darkGray }}
+                    >
+                      <motion.div
+                        className="h-full"
+                        style={{
+                          background: isCritical ? ARCADE_COLORS.bloodyRed : isInfected ? ARCADE_COLORS.radioactiveGreen : ARCADE_COLORS.matrixGreen
+                        }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${stats.infectionLevel}%` }}
+                        transition={{ duration: 1, delay: index * 0.1 }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Task count */}
+                  <div className="flex gap-2 mt-1 text-xs font-bold">
+                    <span style={{ color: ARCADE_COLORS.matrixGreen }}>
+                      {stats.total - stats.zombies} 🔒
+                    </span>
+                    {stats.zombies > 0 && (
+                      <span style={{ color: ARCADE_COLORS.bloodyRed }}>
+                        {stats.zombies} 🧟
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+
+                {/* Hover tooltip */}
+                <div className="absolute top-full mt-4 left-1/2 transform -translate-x-1/2 w-48 p-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  style={{
+                    background: ARCADE_COLORS.black,
+                    border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+                    boxShadow: `0 0 20px ${ARCADE_COLORS.matrixGreen}`
+                  }}
+                >
+                  <p className="font-bold mb-1" style={{ color: '#FFFFFF' }}>
+                    {district.name}
+                  </p>
+                  <p className="text-xs" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                    Infection: {Math.round(stats.infectionLevel)}%
+                  </p>
+                  <p className="text-xs" style={{ color: '#FFFFFF' }}>
+                    {stats.total} tasks • {stats.zombies} zombies
+                  </p>
+                  {stats.hasBoss && (
+                    <p className="text-xs mt-1 font-bold" style={{ color: ARCADE_COLORS.bloodyRed }}>
+                      ⚠️ BOSS ZOMBIE ACTIVE
+                    </p>
+                  )}
+                </div>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+
+        {/* Legend */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-xl p-4 mt-6"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <LegendItem 
+              color={ARCADE_COLORS.matrixGreen}
+              label="Healthy"
+              description="<50% infected"
+            />
+            <LegendItem 
+              color={ARCADE_COLORS.radioactiveGreen}
+              label="Infected"
+              description="50-80% infected"
+            />
+            <LegendItem 
+              color={ARCADE_COLORS.bloodyRed}
+              label="Critical"
+              description=">80% infected"
+            />
+            <LegendItem 
+              color={ARCADE_COLORS.bloodyRed}
+              icon={<AlertTriangle className="w-4 h-4" />}
+              label="Boss Active"
+              description="Megazombie present"
+            />
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+function LegendItem({ color, icon, label, description }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div 
+        className="w-8 h-8 rounded-lg flex items-center justify-center"
+        style={{
+          background: `${color}40`,
+          border: `2px solid ${color}`,
+          boxShadow: `0 0 10px ${color}`
+        }}
+      >
+        {icon || <div className="w-3 h-3 rounded-full" style={{ background: color }} />}
+      </div>
+      <div>
+        <p className="text-sm font-bold" style={{ color: '#FFFFFF' }}>{label}</p>
+        <p className="text-xs" style={{ color: '#FFFFFF' }}>{description}</p>
+      </div>
+    </div>
+  );
+}
