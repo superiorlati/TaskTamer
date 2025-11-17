@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Sparkles, Share, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ZombieStateEngine } from "./ZombieStateEngine";
+
+export default function RewardModal({ task, xpAwarded, cardSpawned, onClose, user }) {
+  const [videoPlaying, setVideoPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+
+  const videoDuration = user?.settings?.reduce_data_usage ? 0 : 4000; // 4s default
+  const microcopy = ZombieStateEngine.getRewardMicrocopy(user?.motivation_tone || 'sweet');
+
+  useEffect(() => {
+    if (videoDuration === 0) {
+      setVideoPlaying(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setVideoPlaying(false);
+          return 100;
+        }
+        return prev + (100 / (videoDuration / 50));
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [videoDuration]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50"
+        onClick={(e) => e.target === e.currentTarget && !videoPlaying && onClose()}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ type: "spring", duration: 0.5 }}
+          className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-2 border-yellow-500"
+        >
+          {/* Title */}
+          <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 text-center">
+            <motion.div
+              animate={{
+                scale: [1, 1.2, 1],
+                rotate: [0, 10, -10, 0]
+              }}
+              transition={{ duration: 1, repeat: videoPlaying ? Infinity : 0 }}
+              className="w-20 h-20 mx-auto mb-4"
+            >
+              <Trophy className="w-full h-full text-white" />
+            </motion.div>
+            <h2 className="text-2xl font-bold text-white mb-1">
+              Zombie Cured! Trophy Earned!
+            </h2>
+            <p className="text-yellow-100">
+              You earned <span className="font-bold">{xpAwarded} XP</span>
+              {cardSpawned && <span> and a <span className="font-bold">Mutation Card</span></span>}
+            </p>
+          </div>
+
+          {/* Video/Animation Area */}
+          <div className="bg-purple-950 p-8">
+            {videoPlaying ? (
+              <div className="space-y-4">
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 360]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-32 h-32 mx-auto bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center"
+                >
+                  <Sparkles className="w-16 h-16 text-white" />
+                </motion.div>
+                
+                <div className="text-center">
+                  <p className="text-white text-lg font-medium mb-4">
+                    {microcopy}
+                  </p>
+                  <div className="w-full bg-purple-900 rounded-full h-2">
+                    <motion.div
+                      className="bg-gradient-to-r from-green-400 to-teal-500 h-2 rounded-full"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center space-y-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", duration: 0.6 }}
+                  className="w-32 h-32 mx-auto bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center"
+                >
+                  <Trophy className="w-16 h-16 text-white" />
+                </motion.div>
+                
+                <p className="text-white text-lg font-medium">
+                  {microcopy}
+                </p>
+
+                {cardSpawned && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-purple-900/50 rounded-lg p-4 border border-yellow-500"
+                  >
+                    <Sparkles className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-yellow-300 font-bold">
+                      Mutation Card Earned!
+                    </p>
+                    <p className="text-purple-300 text-sm">
+                      Check your card vault in Profile
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          {!videoPlaying && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-6 space-y-3"
+            >
+              <Button
+                onClick={onClose}
+                className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-lg py-6"
+              >
+                Awesome!
+              </Button>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {/* Share logic */}}
+                >
+                  <Share className="w-4 h-4" />
+                  Share
+                </Button>
+                
+                {!user?.settings?.reduce_data_usage && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={() => {/* Download logic */}}
+                  >
+                    <Download className="w-4 h-4" />
+                    Save Video
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
