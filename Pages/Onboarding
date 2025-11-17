@@ -1,0 +1,387 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+import QuestionCard from "../components/onboarding/QuestionCard";
+
+const ARCADE_COLORS = {
+  black: "#000000",
+  matrixGreen: "#00FF41",
+  bloodyRed: "#FF0000",
+  cyanGlow: "#00FFFF",
+  darkGray: "#333333",
+};
+
+const questions = [
+  {
+    id: "zombie_intensity",
+    question: "Zombie Intensity Preference",
+    options: [
+      { value: 1, label: "Cute", emoji: "😊", desc: "Plushie zombies, no gore, bright neon green" },
+      { value: 2, label: "Silly / Comic", emoji: "😄", desc: "Goofy animations, cartoon slime" },
+      { value: 3, label: "Arcade Classic", emoji: "🎮", desc: "Pixel zombies, 8-bit SFX, CRT distortion" },
+      { value: 4, label: "Scary", emoji: "💀", desc: "Realistic textures, lurching animations, dark fog" },
+      { value: 5, label: "Nightmare", emoji: "☠️", desc: "Hyper-detailed zombies, glitch horror, heavy fog" }
+    ]
+  },
+  {
+    id: "productivity_mode",
+    question: "Preferred Productivity Mode",
+    options: [
+      { value: "slow_steady", label: "Slow and steady", emoji: "🐢" },
+      { value: "balanced", label: "Balanced", emoji: "⚖️" },
+      { value: "high_speed", label: "High speed / High stakes", emoji: "⚡" }
+    ]
+  },
+  {
+    id: "energy_peak",
+    question: "Chronotype - When is your energy highest?",
+    options: [
+      { value: "morning", label: "Morning", emoji: "🌅" },
+      { value: "afternoon", label: "Afternoon", emoji: "☀️" },
+      { value: "evening", label: "Evening", emoji: "🌆" },
+      { value: "night", label: "Night Owl", emoji: "🌙" }
+    ]
+  },
+  {
+    id: "reward_style",
+    question: "Preferred Reward Style",
+    options: [
+      { value: "xp_powerups", label: "XP Power-Ups", emoji: "⚡" },
+      { value: "mutation_cards", label: "Mutation Cards", emoji: "🎴" },
+      { value: "trophy_animations", label: "Trophy Animations", emoji: "🏆" },
+      { value: "zombie_gear", label: "Zombie Gear", emoji: "🧟" }
+    ]
+  },
+  {
+    id: "aesthetic_variation",
+    question: "Aesthetic Variation",
+    options: [
+      { value: "pixel_retro", label: "Pixel retro", emoji: "👾" },
+      { value: "glitch_neon", label: "Glitch neon", emoji: "⚡" },
+      { value: "toxic_biohazard", label: "Toxic biohazard", emoji: "☣️" },
+      { value: "crt_scanline", label: "CRT-scanline arcade", emoji: "📺" }
+    ]
+  },
+  {
+    id: "preference",
+    question: "Do you prefer:",
+    options: [
+      { value: "hard_first", label: "Hard tasks first", emoji: "💪", desc: "Eat the frog!" },
+      { value: "easy_first", label: "Easy tasks first", emoji: "🎯", desc: "Build momentum" },
+      { value: "smart_mix", label: "Mix (smart)", emoji: "🧠", desc: "Let AI decide" }
+    ]
+  },
+  {
+    id: "focus_length_minutes",
+    question: "How long can you focus comfortably?",
+    type: "number",
+    options: [
+      { value: 25, label: "25 min", emoji: "🍅" },
+      { value: 50, label: "50 min", emoji: "⏱️" },
+      { value: 90, label: "90 min", emoji: "🎯" }
+    ]
+  },
+  {
+    id: "motivation_tone",
+    question: "Which motivational tone do you want?",
+    options: [
+      { value: "sweet", label: "Sweet", emoji: "💕", desc: "Gentle encouragement" },
+      { value: "sarcastic", label: "Sarcastic", emoji: "😏", desc: "Witty remarks" },
+      { value: "drill", label: "Drill Sergeant", emoji: "🪖", desc: "No excuses" },
+      { value: "unhinged", label: "Unhinged", emoji: "🤪", desc: "Chaotic energy" }
+    ]
+  }
+];
+
+export default function OnboardingPage() {
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [showAgeGate, setShowAgeGate] = useState(false);
+  const [age, setAge] = useState("");
+
+  const currentQuestion = questions[currentStep];
+  const progress = ((currentStep + 1) / questions.length) * 100;
+
+  const handleAnswer = (questionId, value) => {
+    // Check for Nightmare mode selection
+    if (questionId === "zombie_intensity" && value === 5) {
+      setShowAgeGate(true);
+      // Temporarily store the selection, but don't finalize until age gate is passed
+      setAnswers(prev => ({ ...prev, [questionId]: value })); 
+      return;
+    }
+    
+    if (currentQuestion.type === "multi") {
+      const current = answers[questionId] || [];
+      const newValue = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value];
+      setAnswers({ ...answers, [questionId]: newValue });
+    } else {
+      setAnswers({ ...answers, [questionId]: value });
+    }
+  };
+
+  const handleAgeGateSubmit = () => {
+    const userAge = parseInt(age);
+    if (isNaN(userAge) || userAge < 0) {
+      alert("Please enter a valid age.");
+      return;
+    }
+
+    if (userAge < 15) {
+      alert("Nightmare Mode is not available for users under 15. Selecting Scary mode instead.");
+      setAnswers(prev => ({ ...prev, zombie_intensity: 4, ageConfirmed: true, nightmareMode: null }));
+      setShowAgeGate(false);
+      // Proceed to next question if currently on zombie_intensity
+      if (currentQuestion.id === "zombie_intensity") {
+        setCurrentStep(currentStep + 1);
+      }
+    } else if (userAge < 18) {
+      setAnswers(prev => ({ ...prev, zombie_intensity: 5, ageConfirmed: true, nightmareMode: "lite" }));
+      setShowAgeGate(false);
+      // Proceed to next question if currently on zombie_intensity
+      if (currentQuestion.id === "zombie_intensity") {
+        setCurrentStep(currentStep + 1);
+      }
+    } else {
+      setAnswers(prev => ({ ...prev, zombie_intensity: 5, ageConfirmed: true, nightmareMode: "full" }));
+      setShowAgeGate(false);
+      // Proceed to next question if currently on zombie_intensity
+      if (currentQuestion.id === "zombie_intensity") {
+        setCurrentStep(currentStep + 1);
+      }
+    }
+  };
+
+  const handleNext = () => {
+    // If the age gate is shown, don't proceed with next step yet
+    if (showAgeGate) return;
+
+    if (currentStep < questions.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      completeOnboarding();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const completeOnboarding = async () => {
+    setLoading(true);
+    try {
+      await base44.auth.updateMe({
+        onboarding_completed: true,
+        zombie_intensity: answers.zombie_intensity || 3, // Default to Arcade Classic
+        productivity_mode: answers.productivity_mode || "balanced",
+        energy_peak: answers.energy_peak || "afternoon", // Default to Afternoon
+        reward_style: answers.reward_style || "xp_powerups",
+        aesthetic_variation: answers.aesthetic_variation || "pixel_retro",
+        preference: answers.preference || "smart_mix",
+        focus_length_minutes: answers.focus_length_minutes || 50,
+        motivation_tone: answers.motivation_tone || "sweet",
+        ageConfirmed: answers.ageConfirmed || false,
+        nightmareMode: answers.nightmareMode || null
+      });
+      
+      navigate(createPageUrl("Matrix"));
+    } catch (error) {
+      console.error("Onboarding error:", error);
+    }
+    setLoading(false);
+  };
+
+  const canProceed = () => {
+    // If age gate is active, we can't proceed with regular next button
+    if (showAgeGate) return false;
+
+    const answer = answers[currentQuestion.id];
+    // For text input, we allow empty string (but it will be default empty later)
+    if (currentQuestion.type === "text") return true; 
+    // For multi-select, if nothing is selected, we still allow proceeding (empty array default)
+    if (currentQuestion.type === "multi") return true; 
+
+    // For other types, an answer must exist
+    return answer !== undefined && answer !== null && answer !== '';
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: ARCADE_COLORS.black }}>
+      <div className="w-full max-w-2xl">
+        {/* Age Gate Modal */}
+        {showAgeGate && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+            <div 
+              className="rounded-lg p-8 max-w-md"
+              style={{
+                background: ARCADE_COLORS.black,
+                border: `2px solid ${ARCADE_COLORS.bloodyRed}`,
+                boxShadow: `0 0 40px ${ARCADE_COLORS.bloodyRed}`
+              }}
+            >
+              <h2 className="text-2xl font-bold mb-4" style={{ color: ARCADE_COLORS.bloodyRed }}>
+                AGE VERIFICATION
+              </h2>
+              <p className="mb-6" style={{ color: '#FFFFFF' }}>
+                Nightmare Mode contains intense visual effects. Please enter your age.
+              </p>
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                placeholder="Enter age"
+                className="w-full p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                style={{
+                  background: ARCADE_COLORS.darkGray,
+                  border: `1px solid ${ARCADE_COLORS.bloodyRed}`,
+                  color: '#FFFFFF',
+                  caretColor: ARCADE_COLORS.matrixGreen, // Custom caret color
+                  '--tw-ring-color': ARCADE_COLORS.matrixGreen, // Focus ring color
+                  '--tw-ring-offset-color': ARCADE_COLORS.black, // Focus ring offset color
+                }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAgeGateSubmit}
+                  className="flex-1 py-3 rounded font-bold hover:brightness-110 transition-all"
+                  style={{
+                    background: ARCADE_COLORS.bloodyRed,
+                    color: '#FFFFFF'
+                  }}
+                >
+                  CONFIRM
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAgeGate(false);
+                    // Revert zombie_intensity if user cancels age gate after selecting Nightmare
+                    if (answers.zombie_intensity === 5) {
+                      setAnswers(prev => ({ ...prev, zombie_intensity: undefined })); // Clear the selection
+                    }
+                  }}
+                  className="flex-1 py-3 rounded font-bold hover:brightness-110 transition-all"
+                  style={{
+                    background: ARCADE_COLORS.darkGray,
+                    border: `1px solid ${ARCADE_COLORS.matrixGreen}`,
+                    color: '#FFFFFF'
+                  }}
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-bold" style={{ color: '#FFFFFF' }}>
+              Step {currentStep + 1} of {questions.length}
+            </span>
+            <span className="text-sm" style={{ color: ARCADE_COLORS.matrixGreen }}>
+              {Math.round(progress)}%
+            </span>
+          </div>
+          <div 
+            className="h-2 rounded-full overflow-hidden"
+            style={{ background: ARCADE_COLORS.darkGray }}
+          >
+            <motion.div
+              className="h-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.3 }}
+              style={{ background: ARCADE_COLORS.matrixGreen }}
+            />
+          </div>
+        </div>
+
+        {/* Question Card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="glass-card border-none shadow-xl bg-gray-800 text-white"> {/* Added bg-gray-800 text-white for better contrast with dark background */}
+              <CardContent className="p-8">
+                <QuestionCard
+                  question={currentQuestion}
+                  answer={answers[currentQuestion.id]}
+                  onAnswer={handleAnswer}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between mt-6">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 0 || showAgeGate}
+            className="gap-2 hover:bg-gray-700 transition-colors"
+            style={{
+              borderColor: ARCADE_COLORS.matrixGreen,
+              color: '#FFFFFF',
+              background: 'transparent'
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed() || loading || showAgeGate}
+            className="gap-2 font-bold hover:brightness-110 transition-all"
+            style={{
+              background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.cyanGlow})`,
+              color: ARCADE_COLORS.black
+            }}
+          >
+            {currentStep === questions.length - 1 ? (
+              <>
+                <Sparkles className="w-4 h-4" />
+                {loading ? "STARTING..." : "START TASKTAMER"}
+              </>
+            ) : (
+              <>
+                NEXT
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Skip Option */}
+        {!showAgeGate && ( // Hide skip button if age gate is shown
+          <div className="text-center mt-4">
+            <button
+              onClick={() => navigate(createPageUrl("Matrix"))}
+              className="text-sm text-gray-400 hover:text-gray-200 underline transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
