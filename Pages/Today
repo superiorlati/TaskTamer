@@ -1,0 +1,33 @@
+import React from "react";
+import { motion } from "framer-motion";
+import { CalendarClock, Sparkles } from "lucide-react";
+
+export default function TodayPage() {
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-5xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-12 text-center border-none shadow-lg"
+        >
+          <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CalendarClock className="w-10 h-10 text-white" />
+          </div>
+          
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+            Today Scheduler
+          </h1>
+          <p className="text-gray-600 mb-8 max-w-md mx-auto">
+            AI-powered daily timetable that maximizes task completion based on your energy levels and preferences.
+          </p>
+          
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+            <Sparkles className="w-4 h-4" />
+            Coming Soon
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
