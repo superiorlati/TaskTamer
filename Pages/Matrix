@@ -1,0 +1,107 @@
+import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+import MatrixGrid from "../components/matrix/MatrixGrid";
+import TaskModal from "../components/matrix/TaskModal";
+import WelcomeBanner from "../components/matrix/WelcomeBanner";
+
+export default function MatrixPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => base44.entities.Task.list('-updated_date'),
+    initialData: [],
+  });
+
+  useEffect(() => {
+    loadUser();
+    const interval = setInterval(updateTaskPriorities, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+      
+      if (!userData.onboarding_completed) {
+        navigate(createPageUrl("Onboarding"));
+      }
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const updateTaskPriorities = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  };
+
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setShowTaskModal(true);
+  };
+
+  const handleNewTask = () => {
+    setSelectedTask(null);
+    setShowTaskModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowTaskModal(false);
+    setSelectedTask(null);
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+        <WelcomeBanner user={user} taskCount={tasks.length} />
+
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Eisenhower Matrix</h1>
+            <p className="text-gray-600 mt-1">Organize by urgency and importance</p>
+          </div>
+          <Button
+            onClick={handleNewTask}
+            className="gap-2 bg-gradient-to-r from-teal-600 to-purple-600 hover:from-teal-700 hover:to-purple-700"
+          >
+            <Plus className="w-5 h-5" />
+            New Task
+          </Button>
+        </div>
+
+        <MatrixGrid
+          tasks={tasks}
+          isLoading={isLoading}
+          onTaskClick={handleTaskClick}
+          user={user}
+        />
+
+        {showTaskModal && (
+          <TaskModal
+            task={selectedTask}
+            user={user}
+            onClose={handleCloseModal}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
