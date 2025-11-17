@@ -1,0 +1,36 @@
+{
+  "name": "PrestigeBadge",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "season": {
+      "type": "number",
+      "description": "Which prestige season this is from"
+    },
+    "badge_type": {
+      "type": "string",
+      "enum": [
+        "cure_master",
+        "mutation_lord",
+        "evolution_champion",
+        "prestige_legend"
+      ],
+      "default": "cure_master"
+    },
+    "permanent_bonus": {
+      "type": "string",
+      "description": "What bonus this badge grants forever"
+    },
+    "earned_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id",
+    "season",
+    "badge_type"
+  ]
+}
