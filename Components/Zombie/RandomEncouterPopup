@@ -1,0 +1,155 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Zap, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ARCADE_COLORS } from "./ThemePalettes";
+
+const MICRO_TASKS = [
+  { prompt: "Drink a glass of water 💧", xp: 15 },
+  { prompt: "Stretch for 30 seconds 🤸", xp: 20 },
+  { prompt: "Take 3 deep breaths 🌬️", xp: 10 },
+  { prompt: "Stand up and walk for 1 minute 🚶", xp: 25 },
+  { prompt: "Write down one thing you're grateful for 📝", xp: 30 },
+  { prompt: "Close your eyes for 10 seconds 👁️", xp: 10 },
+  { prompt: "Send a quick message to a friend 💬", xp: 20 }
+];
+
+export default function RandomEncounterPopup({ onComplete, onFail, intensity = 3 }) {
+  const [task] = useState(MICRO_TASKS[Math.floor(Math.random() * MICRO_TASKS.length)]);
+  const [timeLeft, setTimeLeft] = useState(30);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          onFail();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [onFail]);
+
+  const zombieEmoji = intensity <= 2 ? "🧟‍♀️" : intensity <= 3 ? "🧟" : "👹";
+  const isJumpScare = intensity >= 4 && Math.random() > 0.5;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{
+          background: 'rgba(0, 0, 0, 0.95)',
+          backdropFilter: 'blur(10px)'
+        }}
+      >
+        <motion.div
+          initial={{ scale: isJumpScare ? 2 : 0.8, rotate: isJumpScare ? 10 : 0 }}
+          animate={{ scale: 1, rotate: 0 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          transition={{ type: "spring", duration: 0.5 }}
+          className="max-w-md w-full rounded-2xl p-8 relative"
+          style={{
+            background: ARCADE_COLORS.black,
+            border: `2px solid ${ARCADE_COLORS.bloodyRed}`,
+            boxShadow: `0 0 40px ${ARCADE_COLORS.bloodyRed}`
+          }}
+        >
+          {/* Zombie appearance */}
+          <motion.div
+            animate={{
+              scale: [1, 1.1, 1],
+              rotate: [0, -5, 5, 0]
+            }}
+            transition={{ duration: 1, repeat: Infinity }}
+            className="text-8xl text-center mb-6"
+          >
+            {zombieEmoji}
+          </motion.div>
+
+          {/* Warning */}
+          <div 
+            className="flex items-center gap-2 p-3 rounded-lg mb-4"
+            style={{
+              background: `${ARCADE_COLORS.bloodyRed}20`,
+              border: `1px solid ${ARCADE_COLORS.bloodyRed}`
+            }}
+          >
+            <AlertCircle style={{ color: ARCADE_COLORS.bloodyRed }} />
+            <span className="font-bold" style={{ color: '#FFFFFF' }}>
+              RANDOM ZOMBIE ENCOUNTER!
+            </span>
+          </div>
+
+          {/* Task */}
+          <div className="mb-6">
+            <h3 className="text-xl font-bold neon-text mb-2">Quick Challenge:</h3>
+            <p className="text-lg" style={{ color: '#FFFFFF' }}>
+              {task.prompt}
+            </p>
+            <div className="flex items-center justify-between mt-4">
+              <span style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                +{task.xp} XP
+              </span>
+              <span 
+                className="font-bold text-2xl"
+                style={{ 
+                  color: timeLeft < 10 ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.cyanGlow 
+                }}
+              >
+                {timeLeft}s
+              </span>
+            </div>
+          </div>
+
+          {/* Timer bar */}
+          <div 
+            className="h-2 rounded-full overflow-hidden mb-6"
+            style={{ background: ARCADE_COLORS.darkGray }}
+          >
+            <motion.div
+              className="h-full"
+              style={{
+                background: timeLeft < 10 ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.matrixGreen,
+                boxShadow: `0 0 10px ${timeLeft < 10 ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.matrixGreen}`
+              }}
+              initial={{ width: '100%' }}
+              animate={{ width: `${(timeLeft / 30) * 100}%` }}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button
+              onClick={onFail}
+              variant="outline"
+              className="flex-1 font-bold"
+              style={{
+                borderColor: ARCADE_COLORS.bloodyRed,
+                color: '#FFFFFF'
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => onComplete(task.xp)}
+              className="flex-1 font-bold"
+              style={{
+                background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                color: ARCADE_COLORS.black
+              }}
+            >
+              <Zap className="w-5 h-5 mr-2" />
+              Complete!
+            </Button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
