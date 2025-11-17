@@ -1,0 +1,192 @@
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Zap, Lock, Check } from "lucide-react";
+import { ARCADE_COLORS } from "../zombie/ThemePalettes";
+import { Button } from "@/components/ui/button";
+
+const SKILL_NODES = [
+  // Attack animations
+  { id: "atk1", name: "Claw Strike", type: "attack", cost: 50, x: 100, y: 100, prereqs: [] },
+  { id: "atk2", name: "Toxic Bite", type: "attack", cost: 100, x: 200, y: 80, prereqs: ["atk1"] },
+  { id: "atk3", name: "Rage Mode", type: "attack", cost: 200, x: 300, y: 100, prereqs: ["atk2"] },
+  
+  // Cosmetic mutations
+  { id: "cos1", name: "Glowing Bones", type: "cosmetic", cost: 75, x: 100, y: 200, prereqs: [] },
+  { id: "cos2", name: "Acid Claws", type: "cosmetic", cost: 150, x: 200, y: 220, prereqs: ["cos1"] },
+  { id: "cos3", name: "Neon Eyes", type: "cosmetic", cost: 250, x: 300, y: 200, prereqs: ["cos2"] },
+  
+  // Passive buffs
+  { id: "pas1", name: "Fast Healing", type: "passive", cost: 60, x: 100, y: 300, prereqs: [] },
+  { id: "pas2", name: "XP Boost", type: "passive", cost: 120, x: 200, y: 320, prereqs: ["pas1"] },
+  { id: "pas3", name: "Bonus Rewards", type: "passive", cost: 300, x: 300, y: 300, prereqs: ["pas2"] },
+  
+  // Special moves
+  { id: "spc1", name: "Earthquake Slam", type: "special", cost: 100, x: 400, y: 100, prereqs: ["atk3"] },
+  { id: "spc2", name: "Viral Scream", type: "special", cost: 150, x: 400, y: 200, prereqs: ["cos3"] },
+  { id: "spc3", name: "Regeneration", type: "special", cost: 200, x: 400, y: 300, prereqs: ["pas3"] }
+];
+
+export default function MutationSkillTree({ unlockedNodes = [], materials = 0, onUnlock }) {
+  const [hoveredNode, setHoveredNode] = useState(null);
+
+  const isUnlocked = (nodeId) => unlockedNodes.includes(nodeId);
+  const canUnlock = (node) => {
+    return !isUnlocked(node.id) && 
+           node.prereqs.every(id => isUnlocked(id)) && 
+           materials >= node.cost;
+  };
+
+  const typeColors = {
+    attack: ARCADE_COLORS.bloodyRed,
+    cosmetic: ARCADE_COLORS.cyanGlow,
+    passive: ARCADE_COLORS.radioactiveGreen,
+    special: ARCADE_COLORS.matrixGreen
+  };
+
+  return (
+    <div className="relative w-full h-96 rounded-2xl overflow-hidden"
+      style={{
+        background: `radial-gradient(circle at center, ${ARCADE_COLORS.darkGray}, ${ARCADE_COLORS.black})`,
+        border: `2px solid ${ARCADE_COLORS.matrixGreen}`
+      }}
+    >
+      {/* Connection lines */}
+      <svg className="absolute inset-0 w-full h-full">
+        {SKILL_NODES.map(node => 
+          node.prereqs.map(prereqId => {
+            const prereq = SKILL_NODES.find(n => n.id === prereqId);
+            const isActive = isUnlocked(prereqId) && isUnlocked(node.id);
+            return (
+              <motion.line
+                key={`${prereqId}-${node.id}`}
+                x1={prereq.x}
+                y1={prereq.y}
+                x2={node.x}
+                y2={node.y}
+                stroke={isActive ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.darkGray}
+                strokeWidth="2"
+                initial={{ pathLength: 0 }}
+                animate={{ 
+                  pathLength: isActive ? 1 : 0,
+                  opacity: isActive ? 1 : 0.3
+                }}
+                transition={{ duration: 0.5 }}
+              />
+            );
+          })
+        )}
+      </svg>
+
+      {/* Skill nodes */}
+      {SKILL_NODES.map(node => {
+        const unlocked = isUnlocked(node.id);
+        const available = canUnlock(node);
+        const locked = !unlocked && !available;
+
+        return (
+          <motion.div
+            key={node.id}
+            className="absolute"
+            style={{
+              left: node.x - 30,
+              top: node.y - 30
+            }}
+            onMouseEnter={() => setHoveredNode(node)}
+            onMouseLeave={() => setHoveredNode(null)}
+            animate={{
+              scale: hoveredNode?.id === node.id ? 1.2 : 1
+            }}
+          >
+            <motion.button
+              onClick={() => available && onUnlock(node)}
+              disabled={!available}
+              className="w-16 h-16 rounded-full flex items-center justify-center relative"
+              style={{
+                background: unlocked 
+                  ? `linear-gradient(135deg, ${typeColors[node.type]}, ${ARCADE_COLORS.matrixGreen})`
+                  : locked
+                  ? ARCADE_COLORS.darkGray
+                  : `${typeColors[node.type]}40`,
+                border: `3px solid ${typeColors[node.type]}`,
+                boxShadow: unlocked 
+                  ? `0 0 30px ${typeColors[node.type]}`
+                  : available
+                  ? `0 0 15px ${typeColors[node.type]}`
+                  : 'none',
+                cursor: available ? 'pointer' : 'not-allowed'
+              }}
+              animate={{
+                boxShadow: unlocked 
+                  ? [`0 0 30px ${typeColors[node.type]}`, `0 0 50px ${typeColors[node.type]}`, `0 0 30px ${typeColors[node.type]}`]
+                  : undefined
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              {unlocked ? (
+                <Check className="w-8 h-8" style={{ color: ARCADE_COLORS.black }} />
+              ) : locked ? (
+                <Lock className="w-6 h-6" style={{ color: '#666' }} />
+              ) : (
+                <Zap className="w-6 h-6" style={{ color: typeColors[node.type] }} />
+              )}
+
+              {/* Pulsing effect for available nodes */}
+              {available && !unlocked && (
+                <motion.div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    border: `2px solid ${typeColors[node.type]}`
+                  }}
+                  animate={{
+                    scale: [1, 1.5, 1],
+                    opacity: [0.8, 0, 0.8]
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              )}
+            </motion.button>
+
+            {/* Hover tooltip */}
+            {hoveredNode?.id === node.id && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 w-48 p-3 rounded-lg z-10 text-center"
+                style={{
+                  background: ARCADE_COLORS.black,
+                  border: `2px solid ${typeColors[node.type]}`,
+                  boxShadow: `0 0 20px ${typeColors[node.type]}`
+                }}
+              >
+                <p className="font-bold text-sm mb-1" style={{ color: '#FFFFFF' }}>
+                  {node.name}
+                </p>
+                <p className="text-xs" style={{ color: typeColors[node.type] }}>
+                  {node.type.toUpperCase()}
+                </p>
+                <p className="text-xs mt-2" style={{ color: '#FFFFFF' }}>
+                  Cost: {node.cost} materials
+                </p>
+              </motion.div>
+            )}
+          </motion.div>
+        );
+      })}
+
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 flex gap-3">
+        {Object.entries(typeColors).map(([type, color]) => (
+          <div key={type} className="flex items-center gap-2">
+            <div 
+              className="w-3 h-3 rounded-full"
+              style={{ background: color, boxShadow: `0 0 5px ${color}` }}
+            />
+            <span className="text-xs font-bold" style={{ color: '#FFFFFF' }}>
+              {type}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
