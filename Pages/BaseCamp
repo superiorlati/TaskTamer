@@ -1,0 +1,325 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Home, Flame, Shield, Trophy, Sparkles } from "lucide-react";
+import { ARCADE_COLORS } from "../components/zombie/ThemePalettes";
+import ZombiePersonality from "../components/zombie/ZombiePersonality";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+export default function BaseCampPage() {
+  const [user, setUser] = useState(null);
+  const [timeOfDay, setTimeOfDay] = useState("day");
+  const navigate = useNavigate();
+
+  const { data: profile } = useQuery({
+    queryKey: ['zombieProfile'],
+    queryFn: async () => {
+      const profiles = await base44.entities.ZombieProfile.filter({ user_id: user?.id });
+      return profiles[0];
+    },
+    enabled: !!user,
+    initialData: null
+  });
+
+  const { data: companion } = useQuery({
+    queryKey: ['companion'],
+    queryFn: async () => {
+      const companions = await base44.entities.ZombieCompanion.filter({ user_id: user?.id });
+      return companions[0];
+    },
+    enabled: !!user,
+    initialData: null
+  });
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: () => base44.entities.MutationCard.list(),
+    initialData: []
+  });
+
+  useEffect(() => {
+    loadUser();
+    updateTimeOfDay();
+    const interval = setInterval(updateTimeOfDay, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const updateTimeOfDay = () => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) setTimeOfDay("morning");
+    else if (hour >= 12 && hour < 18) setTimeOfDay("day");
+    else if (hour >= 18 && hour < 22) setTimeOfDay("evening");
+    else setTimeOfDay("night");
+  };
+
+  const skyColors = {
+    morning: `linear-gradient(180deg, #FF6B6B 0%, #4ECDC4 100%)`,
+    day: `linear-gradient(180deg, #00B4D8 0%, #90E0EF 100%)`,
+    evening: `linear-gradient(180deg, #FF006E 0%, #8338EC 100%)`,
+    night: `linear-gradient(180deg, ${ARCADE_COLORS.black} 0%, #1A0033 100%)`
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" 
+          style={{ borderColor: ARCADE_COLORS.matrixGreen }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Sky Background */}
+      <div 
+        className="absolute inset-0 transition-all duration-1000"
+        style={{ background: skyColors[timeOfDay] }}
+      />
+
+      {/* Stars at night */}
+      {timeOfDay === 'night' && (
+        <div className="absolute inset-0">
+          {[...Array(50)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                background: '#FFFFFF',
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 60}%`,
+                boxShadow: `0 0 2px ${ARCADE_COLORS.matrixGreen}`
+              }}
+              animate={{
+                opacity: [0.3, 1, 0.3],
+                scale: [1, 1.5, 1]
+              }}
+              transition={{
+                duration: 2 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 2
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Ground */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-48"
+        style={{
+          background: `linear-gradient(180deg, transparent 0%, ${ARCADE_COLORS.darkGray} 50%)`,
+          borderTop: `2px solid ${ARCADE_COLORS.matrixGreen}`
+        }}
+      />
+
+      <div className="relative z-10 p-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 mb-6"
+        >
+          <div className="flex items-center gap-4">
+            <div 
+              className="w-16 h-16 rounded-xl flex items-center justify-center border-2"
+              style={{
+                background: ARCADE_COLORS.black,
+                borderColor: ARCADE_COLORS.matrixGreen,
+                boxShadow: `0 0 20px ${ARCADE_COLORS.matrixGreen}`
+              }}
+            >
+              <Home className="w-8 h-8" style={{ color: ARCADE_COLORS.matrixGreen }} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold neon-text">ZOMBIE BASE CAMP</h1>
+              <p style={{ color: '#FFFFFF' }}>
+                {timeOfDay === 'night' ? '🌙 Night time' : timeOfDay === 'morning' ? '🌅 Morning' : timeOfDay === 'evening' ? '🌆 Evening' : '☀️ Day time'}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Zombie Area */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Campfire Zone */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-card rounded-2xl p-8 text-center relative overflow-hidden"
+            >
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2">
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.8, 1, 0.8]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-8xl"
+                >
+                  🔥
+                </motion.div>
+              </div>
+
+              {profile ? (
+                <div className="relative z-10">
+                  <ZombiePersonality profile={profile} size="large" />
+                  <h2 className="text-2xl font-bold mt-8 neon-text">{profile.name}</h2>
+                  <p style={{ color: '#FFFFFF' }}>Level {profile.power_level} • Stage {profile.evolution_stage}</p>
+                </div>
+              ) : (
+                <div className="py-12">
+                  <p className="text-xl font-bold mb-4" style={{ color: '#FFFFFF' }}>
+                    No zombie profile yet!
+                  </p>
+                  <Button
+                    onClick={() => navigate(createPageUrl("Lab"))}
+                    className="font-bold"
+                    style={{
+                      background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                      color: ARCADE_COLORS.black
+                    }}
+                  >
+                    Create Your Zombie
+                  </Button>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Companion Zone */}
+            {companion && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="glass-card rounded-xl p-6"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="text-6xl">{getCompanionEmoji(companion.type)}</div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold neon-text">{companion.name}</h3>
+                    <p style={{ color: '#FFFFFF' }}>Level {companion.level} Sidekick</p>
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                          XP
+                        </span>
+                        <span className="text-sm font-bold" style={{ color: '#FFFFFF' }}>
+                          {companion.xp} / {companion.level * 100}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: ARCADE_COLORS.darkGray }}>
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${(companion.xp / (companion.level * 100)) * 100}%`,
+                            background: ARCADE_COLORS.radioactiveGreen,
+                            boxShadow: `0 0 10px ${ARCADE_COLORS.radioactiveGreen}`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Side Areas */}
+          <div className="space-y-6">
+            {/* Med Tent */}
+            <AreaCard
+              icon="🏥"
+              title="CURE LAB"
+              description="Heal your zombie"
+              onClick={() => navigate(createPageUrl("Lab"))}
+            />
+
+            {/* Training Area */}
+            <AreaCard
+              icon="⚔️"
+              title="DUEL ARENA"
+              description="Challenge opponents"
+              onClick={() => navigate(createPageUrl("Duels"))}
+            />
+
+            {/* Trophy Shelf */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card rounded-xl p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Trophy className="w-6 h-6" style={{ color: ARCADE_COLORS.matrixGreen }} />
+                <h3 className="text-xl font-bold neon-text">TROPHY SHELF</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {cards.slice(0, 6).map((card) => (
+                  <div
+                    key={card.id}
+                    className="aspect-square rounded-lg flex items-center justify-center text-2xl"
+                    style={{
+                      background: `${ARCADE_COLORS.darkGray}`,
+                      border: `1px solid ${ARCADE_COLORS.matrixGreen}40`
+                    }}
+                  >
+                    {getCardEmoji(card.rarity)}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AreaCard({ icon, title, description, onClick }) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.05 }}
+      onClick={onClick}
+      className="w-full glass-card rounded-xl p-6 text-center"
+    >
+      <div className="text-6xl mb-3">{icon}</div>
+      <h3 className="text-xl font-bold neon-text mb-2">{title}</h3>
+      <p className="text-sm" style={{ color: '#FFFFFF' }}>{description}</p>
+    </motion.button>
+  );
+}
+
+function getCompanionEmoji(type) {
+  const emojis = {
+    zombie_dog: "🐕",
+    radioactive_bat: "🦇",
+    zombie_fairy: "🧚",
+    eyeball_drone: "👁️",
+    toxic_slug: "🐌"
+  };
+  return emojis[type] || "🐾";
+}
+
+function getCardEmoji(rarity) {
+  const emojis = {
+    legendary: "⭐",
+    epic: "💎",
+    rare: "💠",
+    uncommon: "🔷",
+    common: "⚪"
+  };
+  return emojis[rarity] || "🎴";
+}
