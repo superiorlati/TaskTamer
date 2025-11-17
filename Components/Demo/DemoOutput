@@ -1,0 +1,42 @@
+import React from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Code } from "lucide-react";
+
+export default function DemoOutput({ engine, currentPhase }) {
+  if (!currentPhase) return null;
+
+  const output = {
+    isDemoMode: true,
+    currentPhase,
+    demoUser: engine.demoUser,
+    simulatedTime: engine.simulatedTime.toISOString(),
+    tasksInMemory: engine.demoTasks.length,
+    cardsEarned: engine.demoCards.length,
+    eventsGenerated: engine.demoEvents.length
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-6"
+    >
+      <Card className="glass-card border-purple-500 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Code className="w-5 h-5" />
+            Demo Output (JSON)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-purple-950/50 rounded-lg p-4 overflow-x-auto">
+            <pre className="text-xs text-gray-300 font-mono">
+              {JSON.stringify(output, null, 2)}
+            </pre>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
