@@ -1,0 +1,42 @@
+{
+  "name": "CraftingMaterial",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "material_type": {
+      "type": "string",
+      "enum": [
+        "zombie_essence",
+        "corrupted_tissue",
+        "purified_bone",
+        "viral_catalyst",
+        "mutation_core"
+      ],
+      "default": "zombie_essence"
+    },
+    "quantity": {
+      "type": "number",
+      "default": 1
+    },
+    "source_task_id": {
+      "type": "string",
+      "description": "Which zombie task this came from"
+    },
+    "rarity": {
+      "type": "string",
+      "enum": [
+        "common",
+        "rare",
+        "epic",
+        "legendary"
+      ],
+      "default": "common"
+    }
+  },
+  "required": [
+    "user_id",
+    "material_type"
+  ]
+}
