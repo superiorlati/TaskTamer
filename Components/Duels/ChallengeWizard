@@ -1,0 +1,369 @@
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowRight, ArrowLeft, Swords, Zap } from "lucide-react";
+import { ARCADE_COLORS } from "../zombie/ThemePalettes";
+
+const AI_OPPONENTS = [
+  { id: "cpu-easy", name: "Training Bot", emoji: "🤖", difficulty: "Easy" },
+  { id: "cpu-medium", name: "Zombie Hunter", emoji: "🧟‍♂️", difficulty: "Medium" },
+  { id: "cpu-hard", name: "TaskMaster Pro", emoji: "💀", difficulty: "Hard" }
+];
+
+export default function ChallengeWizard({ tasks, onComplete, onCancel }) {
+  const [step, setStep] = useState(1);
+  const [challengeData, setChallengeData] = useState({
+    opponent: null,
+    task: null,
+    milestones: 5,
+    betPoints: 100
+  });
+
+  const handleNext = () => {
+    if (step < 4) setStep(step + 1);
+  };
+
+  const handleBack = () => {
+    if (step > 1) setStep(step - 1);
+  };
+
+  const handleComplete = () => {
+    const attackPower = Math.max(100 - (challengeData.milestones * 10), 20);
+    onComplete({
+      ...challengeData,
+      attackPower
+    });
+  };
+
+  const canProceed = () => {
+    if (step === 1) return challengeData.opponent !== null;
+    if (step === 2) return challengeData.task !== null;
+    if (step === 3) return challengeData.milestones > 0;
+    return true;
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4"
+      style={{ backdropFilter: 'blur(10px)' }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-3xl rounded-2xl p-8"
+        style={{
+          background: ARCADE_COLORS.black,
+          border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+          boxShadow: `0 0 40px ${ARCADE_COLORS.matrixGreen}`
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-3xl font-bold neon-text">CREATE CHALLENGE</h2>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((s) => (
+              <div
+                key={s}
+                className="w-3 h-3 rounded-full"
+                style={{
+                  background: s === step 
+                    ? ARCADE_COLORS.matrixGreen 
+                    : s < step 
+                      ? ARCADE_COLORS.radioactiveGreen 
+                      : ARCADE_COLORS.darkGray,
+                  boxShadow: s === step ? `0 0 10px ${ARCADE_COLORS.matrixGreen}` : 'none'
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="min-h-[400px]"
+          >
+            {step === 1 && (
+              <Step1
+                selected={challengeData.opponent}
+                onSelect={(opponent) => setChallengeData({ ...challengeData, opponent })}
+              />
+            )}
+            {step === 2 && (
+              <Step2
+                tasks={tasks}
+                selected={challengeData.task}
+                onSelect={(task) => setChallengeData({ ...challengeData, task })}
+              />
+            )}
+            {step === 3 && (
+              <Step3
+                value={challengeData.milestones}
+                onChange={(milestones) => setChallengeData({ ...challengeData, milestones })}
+              />
+            )}
+            {step === 4 && (
+              <Step4 challengeData={challengeData} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between mt-8">
+          <Button
+            onClick={step === 1 ? onCancel : handleBack}
+            variant="outline"
+            className="gap-2 font-bold"
+            style={{
+              borderColor: ARCADE_COLORS.matrixGreen,
+              color: '#FFFFFF'
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {step === 1 ? 'Cancel' : 'Back'}
+          </Button>
+
+          {step < 4 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className="gap-2 font-bold"
+              style={{
+                background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.cyanGlow})`,
+                color: ARCADE_COLORS.black,
+                border: `2px solid ${ARCADE_COLORS.matrixGreen}`
+              }}
+            >
+              Next
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleComplete}
+              className="gap-2 font-bold"
+              style={{
+                background: `linear-gradient(135deg, ${ARCADE_COLORS.radioactiveGreen}, ${ARCADE_COLORS.matrixGreen})`,
+                color: ARCADE_COLORS.black,
+                border: `2px solid ${ARCADE_COLORS.radioactiveGreen}`,
+                boxShadow: `0 0 30px ${ARCADE_COLORS.radioactiveGreen}`
+              }}
+            >
+              <Swords className="w-5 h-5" />
+              START DUEL
+            </Button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function Step1({ selected, onSelect }) {
+  return (
+    <div>
+      <h3 className="text-2xl font-bold mb-6" style={{ color: ARCADE_COLORS.matrixGreen }}>
+        STEP 1: CHOOSE YOUR OPPONENT
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {AI_OPPONENTS.map((opponent) => (
+          <button
+            key={opponent.id}
+            onClick={() => onSelect(opponent)}
+            className="p-6 rounded-xl border-2 transition-all duration-200 text-center"
+            style={{
+              background: selected?.id === opponent.id 
+                ? `${ARCADE_COLORS.matrixGreen}20` 
+                : ARCADE_COLORS.darkGray,
+              borderColor: selected?.id === opponent.id 
+                ? ARCADE_COLORS.matrixGreen 
+                : ARCADE_COLORS.darkGray,
+              boxShadow: selected?.id === opponent.id 
+                ? `0 0 20px ${ARCADE_COLORS.matrixGreen}` 
+                : 'none'
+            }}
+          >
+            <div className="text-6xl mb-4">{opponent.emoji}</div>
+            <h4 className="font-bold mb-2" style={{ color: '#FFFFFF' }}>
+              {opponent.name}
+            </h4>
+            <p className="text-sm" style={{ color: ARCADE_COLORS.matrixGreen }}>
+              {opponent.difficulty}
+            </p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Step2({ tasks, selected, onSelect }) {
+  const availableTasks = tasks.filter(t => t.status !== 'done');
+  
+  return (
+    <div>
+      <h3 className="text-2xl font-bold mb-6" style={{ color: ARCADE_COLORS.matrixGreen }}>
+        STEP 2: CHOOSE THE TASK
+      </h3>
+      <div className="grid gap-3 max-h-96 overflow-y-auto">
+        {availableTasks.map((task) => (
+          <button
+            key={task.id}
+            onClick={() => onSelect(task)}
+            className="p-4 rounded-xl border-2 text-left transition-all duration-200"
+            style={{
+              background: selected?.id === task.id 
+                ? `${ARCADE_COLORS.matrixGreen}20` 
+                : ARCADE_COLORS.darkGray,
+              borderColor: selected?.id === task.id 
+                ? ARCADE_COLORS.matrixGreen 
+                : ARCADE_COLORS.darkGray,
+              boxShadow: selected?.id === task.id 
+                ? `0 0 20px ${ARCADE_COLORS.matrixGreen}` 
+                : 'none'
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold" style={{ color: '#FFFFFF' }}>
+                  {task.title}
+                </h4>
+                <p className="text-sm" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                  {task.estimated_minutes}min • {task.quadrant?.replace(/_/g, ' ')}
+                </p>
+              </div>
+              {task.zombie?.state === 'zombie' && (
+                <span className="text-2xl">🧟</span>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Step3({ value, onChange }) {
+  const attackPower = Math.max(100 - (value * 10), 20);
+  
+  return (
+    <div>
+      <h3 className="text-2xl font-bold mb-6" style={{ color: ARCADE_COLORS.matrixGreen }}>
+        STEP 3: SET MILESTONE COUNT
+      </h3>
+      <div className="space-y-6">
+        <div>
+          <Label className="text-lg mb-4 block" style={{ color: '#FFFFFF' }}>
+            How many milestones do you want this broken into?
+          </Label>
+          <Input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(parseInt(e.target.value) || 1)}
+            min={1}
+            max={20}
+            className="text-2xl font-bold text-center py-6"
+            style={{
+              background: ARCADE_COLORS.darkGray,
+              border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+              color: '#FFFFFF'
+            }}
+          />
+        </div>
+
+        <div 
+          className="p-6 rounded-xl border-2"
+          style={{
+            background: `${ARCADE_COLORS.matrixGreen}10`,
+            borderColor: ARCADE_COLORS.matrixGreen
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-bold" style={{ color: '#FFFFFF' }}>
+              Attack Power Per Milestone:
+            </span>
+            <span className="text-3xl font-bold neon-text">
+              {attackPower}
+            </span>
+          </div>
+          <p className="text-sm" style={{ color: '#FFFFFF' }}>
+            {value <= 3 && "💪 FEWER milestones = STRONGER attacks"}
+            {value > 3 && value <= 7 && "⚖️ Balanced approach"}
+            {value > 7 && "🎯 MORE milestones = WEAKER attacks"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Step4({ challengeData }) {
+  const attackPower = Math.max(100 - (challengeData.milestones * 10), 20);
+  
+  return (
+    <div>
+      <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: ARCADE_COLORS.matrixGreen }}>
+        CONFIRM CHALLENGE
+      </h3>
+      
+      <div 
+        className="p-8 rounded-2xl mb-6"
+        style={{
+          background: ARCADE_COLORS.darkGray,
+          border: `2px solid ${ARCADE_COLORS.matrixGreen}`
+        }}
+      >
+        <div className="flex items-center justify-between mb-8">
+          <div className="text-center">
+            <div className="text-6xl mb-2">👤</div>
+            <p className="font-bold" style={{ color: '#FFFFFF' }}>YOU</p>
+          </div>
+          
+          <Swords 
+            className="w-12 h-12 animate-pulse" 
+            style={{ color: ARCADE_COLORS.bloodyRed }} 
+          />
+          
+          <div className="text-center">
+            <div className="text-6xl mb-2">{challengeData.opponent?.emoji}</div>
+            <p className="font-bold" style={{ color: '#FFFFFF' }}>
+              {challengeData.opponent?.name}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3 text-center">
+          <div>
+            <span style={{ color: ARCADE_COLORS.radioactiveGreen }}>Task:</span>
+            <p className="font-bold" style={{ color: '#FFFFFF' }}>
+              {challengeData.task?.title}
+            </p>
+          </div>
+          <div>
+            <span style={{ color: ARCADE_COLORS.radioactiveGreen }}>Milestones:</span>
+            <p className="font-bold" style={{ color: '#FFFFFF' }}>
+              {challengeData.milestones}
+            </p>
+          </div>
+          <div>
+            <span style={{ color: ARCADE_COLORS.radioactiveGreen }}>Attack Power:</span>
+            <p className="font-bold text-2xl neon-text">
+              {attackPower}
+            </p>
+          </div>
+          <div>
+            <span style={{ color: ARCADE_COLORS.radioactiveGreen }}>XP Stakes:</span>
+            <p className="font-bold" style={{ color: '#FFFFFF' }}>
+              {challengeData.betPoints} points
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
