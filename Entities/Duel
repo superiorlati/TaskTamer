@@ -1,0 +1,65 @@
+{
+  "name": "Duel",
+  "type": "object",
+  "properties": {
+    "challenger_id": {
+      "type": "string",
+      "description": "User ID of challenger"
+    },
+    "challengee_id": {
+      "type": "string",
+      "description": "User ID of challengee"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task being dueled"
+    },
+    "bet_points": {
+      "type": "number",
+      "default": 0
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "completed",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "challenger",
+        "challengee",
+        "draw"
+      ]
+    },
+    "challenger_progress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0
+    },
+    "challengee_progress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0
+    }
+  },
+  "required": [
+    "challenger_id",
+    "challengee_id",
+    "task_id"
+  ]
+}
