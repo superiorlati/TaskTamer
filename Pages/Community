@@ -1,0 +1,229 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { motion } from "framer-motion";
+import { Users, Trophy, Heart, MessageCircle, TrendingUp, Sparkles } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const DEMO_FEED = [
+  {
+    id: 1,
+    user: "Sarah M.",
+    avatar: "SM",
+    action: "cured their first zombie",
+    emoji: "🧟",
+    time: "2 mins ago",
+    reactions: 12
+  },
+  {
+    id: 2,
+    user: "Alex K.",
+    avatar: "AK",
+    action: "completed a 5-day streak",
+    emoji: "🔥",
+    time: "15 mins ago",
+    reactions: 8
+  },
+  {
+    id: 3,
+    user: "Jordan P.",
+    avatar: "JP",
+    action: "won a task duel",
+    emoji: "⚔️",
+    time: "1 hour ago",
+    reactions: 15
+  },
+  {
+    id: 4,
+    user: "Taylor R.",
+    avatar: "TR",
+    action: "earned a legendary card",
+    emoji: "✨",
+    time: "2 hours ago",
+    reactions: 20
+  }
+];
+
+const LEADERBOARD = [
+  { rank: 1, name: "You", xp: 2450, zombies: 12, streak: 7 },
+  { rank: 2, name: "Sarah M.", xp: 2380, zombies: 10, streak: 5 },
+  { rank: 3, name: "Alex K.", xp: 2210, zombies: 9, streak: 8 },
+  { rank: 4, name: "Jordan P.", xp: 2100, zombies: 8, streak: 4 },
+  { rank: 5, name: "Taylor R.", xp: 1950, zombies: 7, streak: 6 }
+];
+
+export default function CommunityPage() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 mb-6 border-none shadow-lg"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+              <Users className="w-8 h-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">Community</h1>
+              <p className="text-gray-600 mt-1">
+                Connect with study buddies and track progress together
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Activity Feed */}
+          <div className="lg:col-span-2">
+            <Card className="glass-card border-none shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-teal-600" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {DEMO_FEED.map((item, idx) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <Avatar>
+                        <AvatarFallback className="bg-gradient-to-br from-teal-500 to-purple-600 text-white">
+                          {item.avatar}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-gray-900">{item.user}</span>
+                          <span className="text-2xl">{item.emoji}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{item.action}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors">
+                            <Heart className="w-4 h-4" />
+                            {item.reactions}
+                          </button>
+                          <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors">
+                            <MessageCircle className="w-4 h-4" />
+                            Reply
+                          </button>
+                          <span className="text-xs text-gray-400 ml-auto">{item.time}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Leaderboard */}
+          <div>
+            <Card className="glass-card border-none shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-600" />
+                  Weekly Leaderboard
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {LEADERBOARD.map((entry, idx) => (
+                    <motion.div
+                      key={entry.rank}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className={`flex items-center gap-3 p-3 rounded-lg ${
+                        entry.rank === 1
+                          ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300"
+                          : "bg-gray-50"
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                        entry.rank === 1
+                          ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
+                          : entry.rank === 2
+                          ? "bg-gray-300 text-gray-700"
+                          : entry.rank === 3
+                          ? "bg-orange-200 text-orange-800"
+                          : "bg-gray-200 text-gray-600"
+                      }`}>
+                        #{entry.rank}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{entry.name}</p>
+                        <p className="text-xs text-gray-600">
+                          {entry.xp} XP • {entry.zombies} 🧟
+                        </p>
+                      </div>
+                      {entry.streak > 5 && (
+                        <Badge className="bg-orange-100 text-orange-800">
+                          🔥 {entry.streak}
+                        </Badge>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Study Buddies Card */}
+            <Card className="glass-card border-none shadow-lg mt-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="w-4 h-4 text-purple-600" />
+                  Study Buddies
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-4">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm text-gray-600 mb-3">
+                    Connect with friends to share progress
+                  </p>
+                  <div className="inline-flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    <Sparkles className="w-3 h-3" />
+                    Coming Soon
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
