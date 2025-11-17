@@ -1,0 +1,274 @@
+
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Save, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+export default function TaskModal({ task, user, onClose }) {
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    title: task?.title || "",
+    description: task?.description || "",
+    importance: task?.importance || 5,
+    urgency: task?.urgency || 5,
+    estimated_minutes: task?.estimated_minutes || 30,
+    deadline: task?.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : ""
+  });
+  const [aiBreakdown, setAiBreakdown] = useState(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+
+  const saveMutation = useMutation({
+    mutationFn: async (data) => {
+      if (task) {
+        return base44.entities.Task.update(task.id, data);
+      } else {
+        return base44.entities.Task.create(data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      onClose();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => base44.entities.Task.delete(task.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      onClose();
+    },
+  });
+
+  const handleSave = () => {
+    const dataToSave = {
+      ...formData,
+      deadline: formData.deadline || null
+    };
+    
+    if (aiBreakdown?.subtasks) {
+      dataToSave.subtasks = aiBreakdown.subtasks;
+      dataToSave.estimated_minutes = aiBreakdown.total_estimated_minutes;
+    }
+    
+    saveMutation.mutate(dataToSave);
+  };
+
+  const handleAiBreakdown = async () => {
+    if (!formData.title) return;
+    
+    setLoadingAi(true);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are TaskTamer's AI Task Breakdown Assistant. Break down this task into subtasks with time estimates.
+        
+Task: ${formData.title}
+Description: ${formData.description || "None provided"}
+User Energy Peak: ${user.energy_peak}
+User Focus Length: ${user.focus_length_minutes} minutes
+User Motivation Tone: ${user.motivation_tone}
+
+Provide a realistic breakdown with 3-7 subtasks. Each subtask should have a title, estimated minutes, and difficulty (easy/medium/hard).`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            subtasks: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  estimated_minutes: { type: "number" },
+                  difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                  status: { type: "string", enum: ["todo", "done"] }
+                }
+              }
+            },
+            total_estimated_minutes: { type: "number" },
+            notes: { type: "string" }
+          }
+        }
+      });
+      
+      setAiBreakdown(result);
+    } catch (error) {
+      console.error("AI breakdown error:", error);
+    }
+    setLoadingAi(false);
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{ background: '#FFFFFF', color: '#000000' }}>
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold" style={{ color: '#000000' }}>
+            {task ? "Edit Task" : "New Task"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          <div>
+            <Label htmlFor="title" style={{ color: '#000000' }}>Task Title *</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="What needs to be done?"
+              className="mt-2"
+              style={{ color: '#000000' }}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description" style={{ color: '#000000' }}>Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Add details..."
+              className="mt-2 min-h-24"
+              style={{ color: '#000000' }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label style={{ color: '#000000' }}>Importance: {formData.importance}/10</Label>
+              <Slider
+                value={[formData.importance]}
+                onValueChange={([value]) => setFormData({ ...formData, importance: value })}
+                min={1}
+                max={10}
+                step={1}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <Label style={{ color: '#000000' }}>Urgency: {formData.urgency}/10</Label>
+              <Slider
+                value={[formData.urgency]}
+                onValueChange={([value]) => setFormData({ ...formData, urgency: value })}
+                min={1}
+                max={10}
+                step={1}
+                className="mt-2"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="estimated_minutes" style={{ color: '#000000' }}>Estimated Minutes</Label>
+              <Input
+                id="estimated_minutes"
+                type="number"
+                value={formData.estimated_minutes}
+                onChange={(e) => setFormData({ ...formData, estimated_minutes: parseInt(e.target.value) || 0 })}
+                className="mt-2"
+                style={{ color: '#000000' }}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="deadline" style={{ color: '#000000' }}>Deadline</Label>
+              <Input
+                id="deadline"
+                type="datetime-local"
+                value={formData.deadline}
+                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                className="mt-2"
+                style={{ color: '#000000' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Button
+              onClick={handleAiBreakdown}
+              disabled={!formData.title || loadingAi}
+              variant="outline"
+              className="w-full gap-2 border-2 border-purple-300 hover:bg-purple-50"
+              style={{ color: '#000000' }}
+            >
+              {loadingAi ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  AI is thinking...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Get AI Task Breakdown
+                </>
+              )}
+            </Button>
+          </div>
+
+          {aiBreakdown && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4"
+            >
+              <h4 className="font-semibold mb-3" style={{ color: '#000000' }}>AI Breakdown</h4>
+              <div className="space-y-2">
+                {aiBreakdown.subtasks?.map((subtask, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm" style={{ color: '#000000' }}>
+                    <span className="text-purple-600 font-medium">{idx + 1}.</span>
+                    <span className="flex-1">{subtask.title}</span>
+                    <span className="text-purple-700 text-xs">{subtask.estimated_minutes}min</span>
+                    <span className="text-xs px-2 py-1 bg-purple-200 rounded" style={{ color: '#000000' }}>
+                      {subtask.difficulty}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {aiBreakdown.notes && (
+                <p className="text-sm text-purple-700 mt-3 italic">{aiBreakdown.notes}</p>
+              )}
+            </motion.div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t">
+          {task && (
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </Button>
+          )}
+          <div className={`flex gap-2 ${!task ? 'ml-auto' : ''}`}>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!formData.title || saveMutation.isPending}
+              className="gap-2 bg-gradient-to-r from-teal-600 to-purple-600"
+            >
+              <Save className="w-4 h-4" />
+              {saveMutation.isPending ? "Saving..." : "Save Task"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
