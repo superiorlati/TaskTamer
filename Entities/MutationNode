@@ -1,0 +1,53 @@
+{
+  "name": "MutationNode",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "node_id": {
+      "type": "string",
+      "description": "Unique identifier for skill tree node"
+    },
+    "node_type": {
+      "type": "string",
+      "enum": [
+        "attack",
+        "cosmetic",
+        "passive",
+        "special_move"
+      ],
+      "default": "passive"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "unlocked": {
+      "type": "boolean",
+      "default": false
+    },
+    "cost": {
+      "type": "number",
+      "description": "XP or material cost"
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "buff_value": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "user_id",
+    "node_id",
+    "name"
+  ]
+}
