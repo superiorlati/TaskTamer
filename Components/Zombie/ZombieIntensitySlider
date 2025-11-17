@@ -1,0 +1,243 @@
+import React, { useState } from "react";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { INTENSITY_LEVELS, ARCADE_COLORS } from "./ThemePalettes";
+import { Skull, Smile, Zap } from "lucide-react";
+
+export default function ZombieIntensitySlider({ user, onUpdate }) {
+  const [currentIntensity, setCurrentIntensity] = useState(user?.zombie_intensity || 3);
+  const [previewMode, setPreviewMode] = useState(false);
+  const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: async (intensity) => {
+      return await base44.auth.updateMe({ zombie_intensity: intensity });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      if (onUpdate) onUpdate();
+    }
+  });
+
+  const handleSave = () => {
+    updateMutation.mutate(currentIntensity);
+  };
+
+  const currentLevel = INTENSITY_LEVELS.find(l => l.value === currentIntensity) || INTENSITY_LEVELS[2];
+  const isDisabled = (level) => {
+    if (level.value === 5) {
+      return user?.settings?.reduced_motion || user?.settings?.high_contrast || !user?.ageConfirmed;
+    }
+    return false;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <label className="text-lg font-bold neon-text">
+            Zombie Intensity
+          </label>
+          <Badge 
+            style={{
+              background: `${ARCADE_COLORS.matrixGreen}20`,
+              color: ARCADE_COLORS.matrixGreen,
+              border: `1px solid ${ARCADE_COLORS.matrixGreen}`
+            }}
+          >
+            {currentLevel.label}
+          </Badge>
+        </div>
+
+        <Slider
+          value={[currentIntensity]}
+          onValueChange={([value]) => setCurrentIntensity(value)}
+          min={1}
+          max={5}
+          step={1}
+          className="mb-6"
+          disabled={user?.settings?.safe_mode}
+        />
+
+        <div className="grid grid-cols-5 gap-2 mb-6">
+          {INTENSITY_LEVELS.map((level) => (
+            <button
+              key={level.value}
+              onClick={() => !isDisabled(level) && setCurrentIntensity(level.value)}
+              disabled={isDisabled(level)}
+              className="p-2 rounded-lg text-center transition-all border-2"
+              style={{
+                background: currentIntensity === level.value 
+                  ? `${ARCADE_COLORS.matrixGreen}20` 
+                  : ARCADE_COLORS.black,
+                borderColor: currentIntensity === level.value 
+                  ? ARCADE_COLORS.matrixGreen 
+                  : ARCADE_COLORS.darkGray,
+                color: isDisabled(level) 
+                  ? ARCADE_COLORS.darkGray 
+                  : currentIntensity === level.value 
+                    ? ARCADE_COLORS.matrixGreen 
+                    : ARCADE_COLORS.radioactiveGreen,
+                opacity: isDisabled(level) ? 0.3 : 1,
+                boxShadow: currentIntensity === level.value 
+                  ? `0 0 15px ${ARCADE_COLORS.matrixGreen}` 
+                  : 'none'
+              }}
+            >
+              <div className="text-2xl mb-1">
+                {level.value === 1 && '😊'}
+                {level.value === 2 && '😄'}
+                {level.value === 3 && '🎮'}
+                {level.value === 4 && '💀'}
+                {level.value === 5 && '☠️'}
+              </div>
+              <div className="text-xs font-bold">{level.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Current Level Info */}
+      <div 
+        className="rounded-lg p-4 border-2"
+        style={{
+          background: `${ARCADE_COLORS.black}E6`,
+          borderColor: ARCADE_COLORS.matrixGreen,
+          boxShadow: `0 0 20px ${ARCADE_COLORS.matrixGreen}33`
+        }}
+      >
+        <h3 
+          className="font-bold mb-2"
+          style={{ color: ARCADE_COLORS.matrixGreen }}
+        >
+          {currentLevel.label}
+        </h3>
+        <p 
+          className="text-sm mb-4"
+          style={{ color: ARCADE_COLORS.radioactiveGreen }}
+        >
+          {currentLevel.description}
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <FeatureBadge 
+            label="Zombie Style" 
+            value={currentLevel.zombieStyle} 
+            active={true}
+          />
+          <FeatureBadge 
+            label="Fog" 
+            value={`${Math.round(currentLevel.fogIntensity * 100)}%`}
+            active={currentLevel.fogIntensity > 0}
+          />
+          <FeatureBadge 
+            label="Glitch Level" 
+            value={currentLevel.glitchLevel}
+            active={currentLevel.glitchLevel > 0}
+          />
+          <FeatureBadge 
+            label="Sound" 
+            value={currentLevel.soundSeverity}
+            active={user?.settings?.audio_enabled}
+          />
+        </div>
+      </div>
+
+      {/* Preview Zone */}
+      <div 
+        className="rounded-lg p-6 text-center border-2"
+        style={{
+          background: `${ARCADE_COLORS.black}CC`,
+          borderColor: ARCADE_COLORS.cyanGlow,
+          boxShadow: `0 0 30px ${ARCADE_COLORS.cyanGlow}44`
+        }}
+      >
+        <h4 
+          className="font-bold mb-4"
+          style={{ color: ARCADE_COLORS.cyanGlow }}
+        >
+          PREVIEW MODE
+        </h4>
+        <PreviewZone intensity={currentIntensity} tone={user?.motivation_tone} />
+      </div>
+
+      {/* Save Button */}
+      <Button
+        onClick={handleSave}
+        disabled={updateMutation.isPending || currentIntensity === user?.zombie_intensity}
+        className="w-full py-6 font-bold text-lg"
+        style={{
+          background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+          color: ARCADE_COLORS.black,
+          border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+          boxShadow: `0 0 30px ${ARCADE_COLORS.matrixGreen}`,
+          textShadow: 'none'
+        }}
+      >
+        {updateMutation.isPending ? "SAVING..." : "SAVE INTENSITY SETTING"}
+      </Button>
+
+      {isDisabled(INTENSITY_LEVELS[4]) && (
+        <p 
+          className="text-xs text-center"
+          style={{ color: ARCADE_COLORS.radioactiveGreen }}
+        >
+          * Nightmare mode requires accessibility settings off and age confirmation
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FeatureBadge({ label, value, active }) {
+  return (
+    <div 
+      className="p-2 rounded border"
+      style={{
+        background: active ? `${ARCADE_COLORS.matrixGreen}10` : ARCADE_COLORS.black,
+        borderColor: active ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.darkGray,
+        color: active ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.darkGray
+      }}
+    >
+      <div className="font-bold">{label}</div>
+      <div className="opacity-80">{value}</div>
+    </div>
+  );
+}
+
+function PreviewZone({ intensity, tone }) {
+  const zombieEmoji = ['😊', '😄', '🧟', '💀', '☠️'][intensity - 1];
+  const message = {
+    1: "Aww, so cute! Keep going!",
+    2: "Haha! You're doing great!",
+    3: "LEVEL UP! Nice work!",
+    4: "ELIMINATED! Victory!",
+    5: "ANNIHILATED! TOTAL DOMINATION!"
+  }[intensity];
+
+  return (
+    <div className="space-y-4">
+      <div 
+        className="text-6xl animate-bounce"
+        style={{
+          animation: 'victoryBounce 1s infinite',
+          filter: intensity >= 4 ? `drop-shadow(0 0 10px ${ARCADE_COLORS.bloodyRed})` : 'none'
+        }}
+      >
+        {zombieEmoji}
+      </div>
+      <p 
+        className="font-bold"
+        style={{ 
+          color: intensity >= 4 ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.matrixGreen,
+          textShadow: `0 0 10px ${intensity >= 4 ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.matrixGreen}`
+        }}
+      >
+        {message}
+      </p>
+    </div>
+  );
+}
