@@ -1,0 +1,185 @@
+import React from "react";
+import { motion } from "framer-motion";
+import { ARCADE_COLORS } from "./ThemePalettes";
+
+const PERSONALITY_TYPES = {
+  feral_biter: {
+    name: "Feral Biter",
+    emoji: "🧟‍♂️",
+    description: "Fast, reckless, fragile",
+    traits: { speed: 9, defense: 3, attack: 7 },
+    color: ARCADE_COLORS.bloodyRed
+  },
+  toxic_spitter: {
+    name: "Toxic Spitter",
+    emoji: "🤢",
+    description: "Ranged attacks, slow, poisonous",
+    traits: { speed: 4, defense: 6, attack: 8 },
+    color: ARCADE_COLORS.radioactiveGreen
+  },
+  armored_rotter: {
+    name: "Armored Rotter",
+    emoji: "🛡️",
+    description: "Tanky, heavy-hitting, resistant",
+    traits: { speed: 5, defense: 10, attack: 6 },
+    color: ARCADE_COLORS.darkGray
+  },
+  shadow_stalker: {
+    name: "Shadow Stalker",
+    emoji: "👻",
+    description: "Stealthy, precise, critical hits",
+    traits: { speed: 8, defense: 4, attack: 9 },
+    color: ARCADE_COLORS.cyanGlow
+  },
+  viral_screamer: {
+    name: "Viral Screamer",
+    emoji: "😱",
+    description: "AOE damage, chaotic, unpredictable",
+    traits: { speed: 7, defense: 5, attack: 8 },
+    color: ARCADE_COLORS.matrixGreen
+  }
+};
+
+const MOOD_STATES = {
+  healthy: {
+    messages: [
+      "Feeling strong today. Feed me tasks!",
+      "I'm at peak performance!",
+      "Let's dominate this to-do list!"
+    ],
+    appearance: "clean",
+    glow: ARCADE_COLORS.matrixGreen
+  },
+  stable: {
+    messages: [
+      "Doing okay. Keep it up.",
+      "Steady progress...",
+      "Not bad, not bad."
+    ],
+    appearance: "normal",
+    glow: ARCADE_COLORS.cyanGlow
+  },
+  sick: {
+    messages: [
+      "Uh oh. I'm starting to rot again…",
+      "Need... tasks... soon...",
+      "Feeling weak..."
+    ],
+    appearance: "deteriorating",
+    glow: ARCADE_COLORS.radioactiveGreen
+  },
+  rotting: {
+    messages: [
+      "You keep this up, I'm going full apocalypse mode.",
+      "This... isn't... good...",
+      "FEED ME PRODUCTIVITY!"
+    ],
+    appearance: "rotten",
+    glow: ARCADE_COLORS.bloodyRed
+  },
+  feral: {
+    messages: [
+      "GRRAAAHHH! TOO LATE!",
+      "I AM THE APOCALYPSE NOW!",
+      "TASKS OR CHAOS!"
+    ],
+    appearance: "monster",
+    glow: ARCADE_COLORS.bloodyRed
+  }
+};
+
+export default function ZombiePersonality({ profile, size = "large" }) {
+  const personality = PERSONALITY_TYPES[profile.personality] || PERSONALITY_TYPES.feral_biter;
+  const mood = MOOD_STATES[profile.mood] || MOOD_STATES.stable;
+  
+  const sizeClasses = {
+    small: "text-4xl w-20 h-20",
+    medium: "text-6xl w-32 h-32",
+    large: "text-8xl w-48 h-48"
+  };
+
+  const randomMessage = mood.messages[Math.floor(Math.random() * mood.messages.length)];
+
+  return (
+    <div className="relative">
+      <motion.div
+        animate={{
+          scale: profile.mood === 'feral' ? [1, 1.1, 1] : 1,
+          rotate: profile.mood === 'feral' ? [0, -5, 5, 0] : 0
+        }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className={`${sizeClasses[size]} flex items-center justify-center relative`}
+        style={{
+          filter: `drop-shadow(0 0 20px ${mood.glow})`,
+          opacity: profile.appearance_level > 7 ? 0.8 : 1
+        }}
+      >
+        {personality.emoji}
+        
+        {/* Appearance overlay based on level */}
+        {profile.appearance_level > 5 && (
+          <div 
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `radial-gradient(circle, transparent 40%, ${ARCADE_COLORS.bloodyRed}${Math.round(profile.appearance_level * 10)} 100%)`,
+              mixBlendMode: 'multiply'
+            }}
+          />
+        )}
+      </motion.div>
+
+      {/* Mood indicator */}
+      <div 
+        className="absolute -top-2 -right-2 w-6 h-6 rounded-full border-2"
+        style={{
+          background: mood.glow,
+          borderColor: ARCADE_COLORS.black,
+          boxShadow: `0 0 10px ${mood.glow}`
+        }}
+      />
+
+      {/* Voice line bubble */}
+      {size === 'large' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 w-64 p-3 rounded-lg text-center"
+          style={{
+            background: ARCADE_COLORS.black,
+            border: `2px solid ${personality.color}`,
+            color: '#FFFFFF'
+          }}
+        >
+          <p className="text-sm font-bold italic">"{randomMessage}"</p>
+        </motion.div>
+      )}
+
+      {/* Stats bar */}
+      <div className="mt-4 space-y-1">
+        <StatBar label="SPD" value={personality.traits.speed} color={ARCADE_COLORS.cyanGlow} />
+        <StatBar label="DEF" value={personality.traits.defense} color={ARCADE_COLORS.matrixGreen} />
+        <StatBar label="ATK" value={personality.traits.attack} color={ARCADE_COLORS.bloodyRed} />
+      </div>
+    </div>
+  );
+}
+
+function StatBar({ label, value, color }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-bold w-8" style={{ color: '#FFFFFF' }}>{label}</span>
+      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: ARCADE_COLORS.darkGray }}>
+        <div
+          className="h-full"
+          style={{
+            width: `${value * 10}%`,
+            background: color,
+            boxShadow: `0 0 5px ${color}`
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export { PERSONALITY_TYPES, MOOD_STATES };
