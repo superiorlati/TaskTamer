@@ -1,0 +1,33 @@
+{
+  "name": "WellbeingCheck",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "happy",
+        "ok",
+        "stressed",
+        "exhausted"
+      ],
+      "default": "ok"
+    },
+    "energy_level": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3
+    },
+    "notes": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "required": [
+    "user_id",
+    "mood"
+  ]
+}
