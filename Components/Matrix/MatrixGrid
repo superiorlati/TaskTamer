@@ -1,0 +1,107 @@
+import React from "react";
+import { motion } from "framer-motion";
+import TaskCard from "./TaskCard";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const quadrants = [
+  {
+    id: "urgent_important",
+    title: "Do First",
+    subtitle: "Urgent & Important",
+    color: "from-red-50 to-orange-50",
+    borderColor: "border-red-200"
+  },
+  {
+    id: "not_urgent_important",
+    title: "Schedule",
+    subtitle: "Not Urgent & Important",
+    color: "from-blue-50 to-teal-50",
+    borderColor: "border-blue-200"
+  },
+  {
+    id: "urgent_not_important",
+    title: "Delegate",
+    subtitle: "Urgent & Not Important",
+    color: "from-yellow-50 to-amber-50",
+    borderColor: "border-yellow-200"
+  },
+  {
+    id: "not_urgent_not_important",
+    title: "Eliminate",
+    subtitle: "Not Urgent & Not Important",
+    color: "from-gray-50 to-slate-50",
+    borderColor: "border-gray-200"
+  }
+];
+
+export default function MatrixGrid({ tasks, isLoading, onTaskClick, user }) {
+  const getTasksForQuadrant = (quadrantId) => {
+    return tasks.filter(task => {
+      const importance = task.importance || 5;
+      const urgency = task.urgency || 5;
+      
+      if (quadrantId === "urgent_important") {
+        return urgency >= 6 && importance >= 6;
+      } else if (quadrantId === "not_urgent_important") {
+        return urgency < 6 && importance >= 6;
+      } else if (quadrantId === "urgent_not_important") {
+        return urgency >= 6 && importance < 6;
+      } else {
+        return urgency < 6 && importance < 6;
+      }
+    }).filter(task => task.status !== "done");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-96 rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {quadrants.map((quadrant) => {
+        const quadrantTasks = getTasksForQuadrant(quadrant.id);
+        
+        return (
+          <motion.div
+            key={quadrant.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`glass-card rounded-2xl p-4 border-2 ${quadrant.borderColor} min-h-80`}
+          >
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-gray-900">{quadrant.title}</h3>
+              <p className="text-sm text-gray-600">{quadrant.subtitle}</p>
+              <div className="mt-2 text-xs font-medium text-gray-500">
+                {quadrantTasks.length} {quadrantTasks.length === 1 ? 'task' : 'tasks'}
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {quadrantTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onClick={() => onTaskClick(task)}
+                  user={user}
+                />
+              ))}
+              
+              {quadrantTasks.length === 0 && (
+                <div className="text-center py-8 text-gray-400">
+                  <p className="text-sm">No tasks here yet</p>
+                  <p className="text-xs mt-1">You're doing great! 🎉</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
