@@ -1,0 +1,45 @@
+{
+  "name": "CityDistrict",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "district_name": {
+      "type": "string",
+      "enum": [
+        "work_zone",
+        "health_sector",
+        "learning_district",
+        "social_hub",
+        "home_base"
+      ],
+      "default": "work_zone"
+    },
+    "infection_level": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0,
+      "description": "How infected this district is"
+    },
+    "cleanliness_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 100
+    },
+    "boss_active": {
+      "type": "boolean",
+      "default": false
+    },
+    "boss_health": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "user_id",
+    "district_name"
+  ]
+}
