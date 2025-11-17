@@ -1,0 +1,419 @@
+/**
+ * TaskTamer Demo Engine
+ * Generates synthetic data and simulates all features
+ */
+
+export default class DemoEngine {
+  constructor() {
+    this.demoUser = {
+      id: "DemoUser-001",
+      email: "demo@tasktamer.app",
+      full_name: "Demo Student",
+      procrastinator_type: "scroller",
+      motivation_tone: "sarcastic",
+      zombie_intensity: 3,
+      energy_peak: "afternoon",
+      preference: "smart_mix",
+      focus_length_minutes: 50,
+      reward_preference: "cosmetic",
+      xp: 0,
+      zombie_score: 0,
+      badges: []
+    };
+
+    this.demoTasks = [];
+    this.demoCards = [];
+    this.demoEvents = [];
+    this.simulatedTime = new Date();
+  }
+
+  initialize() {
+    this.demoTasks = this.generateDemoTasks();
+    this.demoCards = [];
+    this.demoEvents = [];
+    this.simulatedTime = new Date();
+  }
+
+  async executePhase(phaseId) {
+    const events = [];
+    
+    switch (phaseId) {
+      case "intro":
+        events.push({
+          type: "info",
+          message: "Welcome to TaskTamer Demo Mode! Everything happens FAST so you can see all features instantly.",
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "onboarding":
+        events.push({
+          type: "onboarding",
+          message: "Simulating onboarding with preset answers...",
+          data: {
+            procrastinator_type: "scroller",
+            motivation_tone: "sarcastic",
+            zombie_intensity: 3,
+            energy_peak: "afternoon"
+          },
+          timestamp: new Date().toISOString()
+        });
+        events.push({
+          type: "info",
+          message: "✓ Personalization configured based on your answers",
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "tasks":
+        events.push({
+          type: "task_creation",
+          message: `Created ${this.demoTasks.length} demo tasks across all quadrants`,
+          tasks: this.demoTasks.map(t => t.title),
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "matrix":
+        events.push({
+          type: "matrix_update",
+          message: "Simulating 6 hours of time passage...",
+          timestamp: new Date().toISOString()
+        });
+        this.advanceTime(6 * 60);
+        events.push({
+          type: "matrix_update",
+          message: "✓ Tasks automatically repositioned based on urgency changes",
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "zombie":
+        const zombieTask = this.demoTasks[0];
+        events.push({
+          type: "zombie_transition",
+          message: `"${zombieTask.title}" is becoming a zombie...`,
+          states: ["healthy", "sick", "zombie_rising", "zombie"],
+          timestamp: new Date().toISOString()
+        });
+        events.push({
+          type: "zombie_transition",
+          message: "⚠️ Zombie alert! This task needs attention",
+          riskScore: 0.85,
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "cards":
+        const rarities = ["common", "uncommon", "rare", "epic", "legendary"];
+        rarities.forEach(rarity => {
+          const card = this.spawnCard(rarity);
+          events.push({
+            type: "card_spawn",
+            message: `✨ ${rarity.toUpperCase()} mutation card earned!`,
+            card: card,
+            timestamp: new Date().toISOString()
+          });
+        });
+        break;
+
+      case "ai_breakdown":
+        events.push({
+          type: "ai_breakdown",
+          message: "AI analyzing task: 'Write History Essay'...",
+          timestamp: new Date().toISOString()
+        });
+        await this.simulateDelay(1000);
+        events.push({
+          type: "ai_breakdown",
+          message: "✓ Task broken down into 5 subtasks with time estimates",
+          subtasks: [
+            { title: "Research Industrial Revolution", minutes: 45, difficulty: "medium" },
+            { title: "Create outline", minutes: 20, difficulty: "easy" },
+            { title: "Write introduction", minutes: 30, difficulty: "medium" },
+            { title: "Write body paragraphs", minutes: 90, difficulty: "hard" },
+            { title: "Write conclusion & proofread", minutes: 25, difficulty: "medium" }
+          ],
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "timetable":
+        events.push({
+          type: "scheduling",
+          message: "Generating optimized daily schedule...",
+          timestamp: new Date().toISOString()
+        });
+        events.push({
+          type: "scheduling",
+          message: "✓ Tasks scheduled based on energy peak (afternoon) and focus length (50min)",
+          schedule: [
+            { time: "14:00", task: "High priority essay work", energy: "peak" },
+            { time: "14:50", task: "Break", energy: "rest" },
+            { time: "15:00", task: "Research sources", energy: "peak" },
+            { time: "15:50", task: "Break", energy: "rest" },
+            { time: "16:00", task: "Light admin tasks", energy: "declining" }
+          ],
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "intensity":
+        for (let i = 0; i <= 5; i++) {
+          events.push({
+            type: "intensity_demo",
+            message: `Zombie Intensity: ${i} - ${this.getIntensityLabel(i)}`,
+            level: i,
+            features: this.getIntensityFeatures(i),
+            timestamp: new Date().toISOString()
+          });
+          await this.simulateDelay(600);
+        }
+        break;
+
+      case "community":
+        events.push({
+          type: "community",
+          message: "Simulating community feed...",
+          posts: [
+            { user: "DemoStudent-A", content: "Just cured my first zombie! 🎉", reactions: 12 },
+            { user: "DemoStudent-B", content: "3-day streak! Feeling motivated 💪", reactions: 8 },
+            { user: "DemoStudent-C", content: "Anyone want to be study buddies?", reactions: 5 }
+          ],
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "duels":
+        events.push({
+          type: "duel_start",
+          message: "Task Duel: DemoUser-001 vs DemoStudent-Bot",
+          task: "Complete math problem set",
+          betPoints: 50,
+          timestamp: new Date().toISOString()
+        });
+        for (let i = 0; i <= 100; i += 20) {
+          await this.simulateDelay(300);
+          events.push({
+            type: "duel_progress",
+            message: `Progress: You ${i}% | Bot ${i - 10}%`,
+            yourProgress: i,
+            botProgress: i - 10,
+            timestamp: new Date().toISOString()
+          });
+        }
+        events.push({
+          type: "duel_complete",
+          message: "🏆 You won the duel! +75 XP, +60 points",
+          winner: "DemoUser-001",
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "analytics":
+        events.push({
+          type: "analytics",
+          message: "Analytics Dashboard Updated",
+          metrics: {
+            completionRate: "78%",
+            avgTaskTime: "42 min",
+            chronotype: "afternoon-peak",
+            procrastinationRisk: "moderate",
+            streakDays: 5
+          },
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "burnout":
+        events.push({
+          type: "burnout_alert",
+          message: "⚠️ Burnout Risk Detected: Score 0.62",
+          recommendation: "Consider taking a break or reducing tomorrow's load",
+          riskScore: 0.62,
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "recovery":
+        events.push({
+          type: "recovery_mode",
+          message: "Activating Recovery Mode...",
+          timestamp: new Date().toISOString()
+        });
+        events.push({
+          type: "recovery_mode",
+          message: "✓ Moved 3 tasks to Recovery Bin. Focus on top 3 priorities today.",
+          simplifiedTasks: 3,
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "accessibility":
+        events.push({
+          type: "accessibility",
+          message: "Demonstrating accessibility features:",
+          features: [
+            "✓ Reduced motion mode",
+            "✓ High contrast theme",
+            "✓ Screen reader support",
+            "✓ Keyboard navigation",
+            "✓ Color-blind safe icons"
+          ],
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "leaderboard":
+        events.push({
+          type: "leaderboard",
+          message: "Weekly Leaderboard",
+          rankings: [
+            { rank: 1, user: "DemoUser-001 (YOU)", xp: 2450, zombiesCured: 12 },
+            { rank: 2, user: "DemoStudent-A", xp: 2380, zombiesCured: 10 },
+            { rank: 3, user: "DemoStudent-B", xp: 2210, zombiesCured: 9 },
+            { rank: 4, user: "CPU-Bot-Zed", xp: 2100, zombiesCured: 8 }
+          ],
+          timestamp: new Date().toISOString()
+        });
+        break;
+
+      case "summary":
+        events.push({
+          type: "summary",
+          message: "🎉 Demo Complete! You've experienced all TaskTamer features.",
+          stats: {
+            featuresShown: 17,
+            tasksSimulated: this.demoTasks.length,
+            cardsEarned: this.demoCards.length,
+            eventsGenerated: this.demoEvents.length + events.length,
+            simulatedDays: 7
+          },
+          timestamp: new Date().toISOString()
+        });
+        break;
+    }
+
+    this.demoEvents.push(...events);
+    return { events };
+  }
+
+  generateDemoTasks() {
+    return [
+      {
+        id: "demo-1",
+        title: "Write History Essay (2000 words)",
+        description: "Industrial Revolution impact analysis",
+        importance: 9,
+        urgency: 8,
+        estimated_minutes: 210,
+        status: "todo",
+        deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "demo-2",
+        title: "Long-term Research Project",
+        description: "Plan semester research paper",
+        importance: 8,
+        urgency: 4,
+        estimated_minutes: 120,
+        status: "todo",
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "demo-3",
+        title: "Respond to club emails",
+        description: "Quick admin task",
+        importance: 4,
+        urgency: 7,
+        estimated_minutes: 20,
+        status: "todo",
+        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "demo-4",
+        title: "Watch optional lecture recording",
+        description: "Supplementary material",
+        importance: 3,
+        urgency: 2,
+        estimated_minutes: 60,
+        status: "todo"
+      },
+      {
+        id: "demo-5",
+        title: "Neglected Task (Zombie Demo)",
+        description: "This will become a zombie",
+        importance: 6,
+        urgency: 5,
+        estimated_minutes: 45,
+        status: "todo",
+        created_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+  }
+
+  spawnCard(rarity) {
+    const card = {
+      id: `card-${Date.now()}-${Math.random()}`,
+      rarity,
+      name: this.getCardName(rarity),
+      description: "Demo mutation card",
+      card_type: "cosmetic",
+      emoji: "🧟"
+    };
+    this.demoCards.push(card);
+    return card;
+  }
+
+  getCardName(rarity) {
+    const names = {
+      common: "Basic Zombie Charm",
+      uncommon: "Studious Zombie Badge",
+      rare: "Productivity Phantom",
+      epic: "Academic Overlord",
+      legendary: "Procrastination Slayer"
+    };
+    return names[rarity] || "Mystery Card";
+  }
+
+  getIntensityLabel(level) {
+    const labels = ["Off", "Cute", "Silly", "Balanced", "Edgy", "Scary"];
+    return labels[level] || "Unknown";
+  }
+
+  getIntensityFeatures(level) {
+    return {
+      visuals: level >= 1,
+      sounds: level >= 3,
+      animations: level >= 2,
+      dramaticEffects: level >= 4
+    };
+  }
+
+  advanceTime(minutes) {
+    this.simulatedTime = new Date(this.simulatedTime.getTime() + minutes * 60 * 1000);
+  }
+
+  simulateDelay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  generateReport(events, completedFeatures) {
+    return {
+      isDemoMode: true,
+      timestamp: new Date().toISOString(),
+      demoUser: this.demoUser,
+      featuresCompleted: completedFeatures,
+      totalEvents: events.length,
+      tasksSimulated: this.demoTasks.length,
+      cardsEarned: this.demoCards.length,
+      simulatedTime: this.simulatedTime.toISOString(),
+      events: events,
+      summary: {
+        duration: "~90 seconds",
+        phasesCompleted: completedFeatures.length,
+        recommendation: "All features successfully demonstrated"
+      }
+    };
+  }
+}
