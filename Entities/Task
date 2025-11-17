@@ -1,0 +1,142 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "description": {
+      "type": "string",
+      "default": ""
+    },
+    "importance": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 5
+    },
+    "urgency": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 5
+    },
+    "estimated_minutes": {
+      "type": "number",
+      "default": 30
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "in_progress",
+        "done",
+        "zombie"
+      ],
+      "default": "todo"
+    },
+    "zombie": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "sick",
+            "zombie_rising",
+            "zombie",
+            "cured"
+          ],
+          "default": "healthy"
+        },
+        "riskScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
+        "lastStateChangeAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "visualLevel": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 3
+        },
+        "lastInteractionAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "default": {
+        "state": "healthy",
+        "riskScore": 0,
+        "visualLevel": 3
+      }
+    },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "estimatedMinutes": {
+            "type": "number"
+          },
+          "impactWeight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "completed": {
+            "type": "boolean",
+            "default": false
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          }
+        }
+      },
+      "default": []
+    },
+    "priority_score": {
+      "type": "number",
+      "default": 0
+    },
+    "quadrant": {
+      "type": "string",
+      "enum": [
+        "urgent_important",
+        "not_urgent_important",
+        "urgent_not_important",
+        "not_urgent_not_important"
+      ],
+      "default": "not_urgent_not_important"
+    },
+    "taskSensitivityOverride": {
+      "type": "boolean",
+      "description": "Make this task Friendly - sets visualLevel max 2",
+      "default": false
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
