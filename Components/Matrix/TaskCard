@@ -1,0 +1,227 @@
+import React from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Clock, Calendar, Skull, Zap } from "lucide-react";
+import { format } from "date-fns";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { ARCADE_COLORS, getInfectionStyles } from "../zombie/ThemePalettes";
+
+export default function TaskCard({ task, onClick, user }) {
+  const queryClient = useQueryClient();
+
+  const toggleCompleteMutation = useMutation({
+    mutationFn: async () => {
+      const newStatus = task.status === "done" ? "todo" : "done";
+      return await base44.entities.Task.update(task.id, { status: newStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+
+  const handleCheckboxChange = (checked) => {
+    toggleCompleteMutation.mutate();
+  };
+
+  const isZombie = task.zombie?.state === 'zombie';
+  const isZombieRising = task.zombie?.state === 'zombie_rising';
+  const isSick = task.zombie?.state === 'sick';
+  const isDone = task.status === 'done';
+  const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !isDone;
+
+  const threatLevel = isZombie ? 3 : isZombieRising ? 2 : isSick ? 1 : 0;
+  const infectionStyle = threatLevel > 0 ? getInfectionStyles(threatLevel) : {};
+
+  const zombieEmoji = {
+    'zombie': '🧟',
+    'zombie_rising': '😰',
+    'sick': '🤢',
+    'cured': '✨',
+    'healthy': ''
+  }[task.zombie?.state || 'healthy'];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="cursor-pointer"
+    >
+      <Card
+        className="overflow-hidden transition-all duration-200 border-2"
+        style={{
+          background: isZombie 
+            ? `${ARCADE_COLORS.bloodyRed}20` 
+            : isDone 
+              ? `${ARCADE_COLORS.darkGray}` 
+              : ARCADE_COLORS.black,
+          borderColor: isZombie 
+            ? ARCADE_COLORS.bloodyRed 
+            : isZombieRising 
+              ? ARCADE_COLORS.radioactiveGreen 
+              : ARCADE_COLORS.matrixGreen,
+          boxShadow: isZombie 
+            ? `0 0 30px ${ARCADE_COLORS.bloodyRed}` 
+            : `0 0 15px ${ARCADE_COLORS.matrixGreen}33`,
+          ...infectionStyle,
+          opacity: isDone ? 0.6 : 1
+        }}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={isDone}
+                onCheckedChange={handleCheckboxChange}
+                className="mt-1"
+                style={{
+                  borderColor: ARCADE_COLORS.matrixGreen,
+                  background: isDone ? ARCADE_COLORS.matrixGreen : 'transparent'
+                }}
+              />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                {zombieEmoji && (
+                  <span className="text-xl" style={{
+                    animation: isZombie ? 'glitchShake 0.3s infinite' : 'none'
+                  }}>
+                    {zombieEmoji}
+                  </span>
+                )}
+                <h3
+                  className={`font-bold ${isDone ? 'line-through' : ''}`}
+                  style={{
+                    color: isZombie 
+                      ? ARCADE_COLORS.bloodyRed 
+                      : isZombieRising 
+                        ? ARCADE_COLORS.radioactiveGreen 
+                        : ARCADE_COLORS.matrixGreen
+                  }}
+                >
+                  {task.title}
+                </h3>
+              </div>
+
+              {task.description && (
+                <p
+                  className="text-sm mb-3"
+                  style={{ color: ARCADE_COLORS.radioactiveGreen }}
+                >
+                  {task.description}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {isZombie && (
+                  <Badge
+                    style={{
+                      background: `${ARCADE_COLORS.bloodyRed}30`,
+                      color: ARCADE_COLORS.bloodyRed,
+                      border: `1px solid ${ARCADE_COLORS.bloodyRed}`,
+                      animation: 'arcadeFlash 1s infinite'
+                    }}
+                  >
+                    <Skull className="w-3 h-3 mr-1" />
+                    ZOMBIE
+                  </Badge>
+                )}
+
+                {isZombieRising && (
+                  <Badge
+                    style={{
+                      background: `${ARCADE_COLORS.radioactiveGreen}30`,
+                      color: ARCADE_COLORS.radioactiveGreen,
+                      border: `1px solid ${ARCADE_COLORS.radioactiveGreen}`
+                    }}
+                  >
+                    <Zap className="w-3 h-3 mr-1" />
+                    RISING
+                  </Badge>
+                )}
+
+                {task.deadline && (
+                  <Badge
+                    variant="outline"
+                    style={{
+                      borderColor: isOverdue ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.cyanGlow,
+                      color: isOverdue ? ARCADE_COLORS.bloodyRed : ARCADE_COLORS.cyanGlow
+                    }}
+                  >
+                    <Calendar className="w-3 h-3 mr-1" />
+                    {format(new Date(task.deadline), 'MMM d')}
+                  </Badge>
+                )}
+
+                {task.estimated_minutes && (
+                  <Badge
+                    variant="outline"
+                    style={{
+                      borderColor: ARCADE_COLORS.matrixGreen,
+                      color: ARCADE_COLORS.matrixGreen
+                    }}
+                  >
+                    <Clock className="w-3 h-3 mr-1" />
+                    {task.estimated_minutes}min
+                  </Badge>
+                )}
+              </div>
+
+              {threatLevel > 0 && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span 
+                      className="text-xs font-bold"
+                      style={{ color: ARCADE_COLORS.bloodyRed }}
+                    >
+                      THREAT LEVEL
+                    </span>
+                    <span 
+                      className="text-xs font-bold"
+                      style={{ color: ARCADE_COLORS.bloodyRed }}
+                    >
+                      {threatLevel}/3
+                    </span>
+                  </div>
+                  <div 
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ background: `${ARCADE_COLORS.darkGray}` }}
+                  >
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(threatLevel / 3) * 100}%` }}
+                      className="h-full"
+                      style={{
+                        background: `linear-gradient(90deg, ${ARCADE_COLORS.radioactiveGreen}, ${ARCADE_COLORS.bloodyRed})`,
+                        boxShadow: `0 0 10px ${ARCADE_COLORS.bloodyRed}`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isZombie && (
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          initial={{ scale: 1, opacity: 0.8 }}
+          animate={{ scale: 2, opacity: 0 }}
+          transition={{ duration: 2, repeat: Infinity }}
+          style={{
+            border: `2px solid ${ARCADE_COLORS.radioactiveGreen}`,
+            borderRadius: '8px'
+          }}
+        />
+      )}
+    </motion.div>
+  );
+}
