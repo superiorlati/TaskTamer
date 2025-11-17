@@ -1,0 +1,418 @@
+import { base44 } from "@/api/base44Client";
+
+/**
+ * DemoOrchestrator - Creates REAL entities and demonstrates actual features
+ */
+export default class DemoOrchestrator {
+  constructor() {
+    this.demoTaskIds = [];
+    this.demoDuelIds = [];
+    this.demoCardIds = [];
+    this.originalUser = null;
+  }
+
+  async initialize() {
+    // Store original user data
+    try {
+      this.originalUser = await base44.auth.me();
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  }
+
+  async executeStep(stepId) {
+    switch (stepId) {
+      case "welcome":
+        return { message: "Welcome to TaskTamer!" };
+
+      case "create_tasks":
+        return await this.createDemoTasks();
+
+      case "show_matrix":
+        return { message: "Tasks displayed in Eisenhower Matrix" };
+
+      case "ai_breakdown":
+        return await this.demonstrateAIBreakdown();
+
+      case "zombie_demo":
+        return await this.demonstrateZombieSystem();
+
+      case "mutation_cards":
+        return await this.spawnMutationCards();
+
+      case "profile_settings":
+        return await this.demonstrateIntensitySettings();
+
+      case "create_duels":
+        return await this.createDemoDuels();
+
+      case "community":
+        return { message: "Community features" };
+
+      case "analytics":
+        return await this.showAnalytics();
+
+      case "complete":
+        return { message: "Demo complete!" };
+
+      default:
+        return {};
+    }
+  }
+
+  async createDemoTasks() {
+    const demoTasks = [
+      {
+        title: "Write 2000-word History Essay",
+        description: "Industrial Revolution impact analysis - Due Friday",
+        importance: 9,
+        urgency: 8,
+        estimated_minutes: 180,
+        deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "todo"
+      },
+      {
+        title: "Complete Math Problem Set",
+        description: "Calculus Chapter 5 - 20 problems",
+        importance: 8,
+        urgency: 9,
+        estimated_minutes: 90,
+        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "todo"
+      },
+      {
+        title: "Study for Biology Midterm",
+        description: "Chapters 1-7, focus on cellular respiration",
+        importance: 9,
+        urgency: 7,
+        estimated_minutes: 240,
+        deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "todo"
+      },
+      {
+        title: "Group Project Planning",
+        description: "Meet with team to divide responsibilities",
+        importance: 7,
+        urgency: 6,
+        estimated_minutes: 60,
+        deadline: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "todo"
+      },
+      {
+        title: "Read Book for Literature Class",
+        description: "Finish 'To Kill a Mockingbird' - 100 pages left",
+        importance: 8,
+        urgency: 5,
+        estimated_minutes: 150,
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "todo"
+      },
+      {
+        title: "Respond to Club Emails",
+        description: "Answer questions about next meeting",
+        importance: 4,
+        urgency: 7,
+        estimated_minutes: 15,
+        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "todo"
+      },
+      {
+        title: "Clean Dorm Room",
+        description: "Organize desk and do laundry",
+        importance: 3,
+        urgency: 6,
+        estimated_minutes: 45,
+        status: "todo"
+      },
+      {
+        title: "Watch Optional Lecture Recording",
+        description: "Supplementary physics lecture",
+        importance: 5,
+        urgency: 2,
+        estimated_minutes: 60,
+        status: "todo"
+      },
+      {
+        title: "Plan Spring Break Trip",
+        description: "Research destinations and prices",
+        importance: 4,
+        urgency: 3,
+        estimated_minutes: 90,
+        status: "todo"
+      },
+      {
+        title: "Update LinkedIn Profile",
+        description: "Add recent projects and skills",
+        importance: 6,
+        urgency: 2,
+        estimated_minutes: 30,
+        status: "todo"
+      }
+    ];
+
+    const createdTasks = [];
+    for (const task of demoTasks) {
+      try {
+        const created = await base44.entities.Task.create(task);
+        this.demoTaskIds.push(created.id);
+        createdTasks.push(created);
+      } catch (error) {
+        console.error("Error creating task:", error);
+      }
+    }
+
+    return {
+      tasksCreated: createdTasks.length,
+      tasks: createdTasks
+    };
+  }
+
+  async demonstrateAIBreakdown() {
+    if (this.demoTaskIds.length === 0) return {};
+
+    // Get the first task
+    const taskId = this.demoTaskIds[0];
+    
+    try {
+      const user = await base44.auth.me();
+      
+      // Generate AI breakdown
+      const breakdown = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are TaskTamer's AI Task Breakdown Assistant. Break down this task into subtasks.
+
+Task: Write 2000-word History Essay
+Description: Industrial Revolution impact analysis
+User Energy Peak: ${user.energy_peak}
+User Focus Length: ${user.focus_length_minutes} minutes
+User Motivation Tone: ${user.motivation_tone}
+
+Provide 5-7 subtasks with titles, estimated minutes, and difficulty.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            subtasks: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  estimated_minutes: { type: "number" },
+                  difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                  status: { type: "string", enum: ["todo", "done"] }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Update task with breakdown
+      await base44.entities.Task.update(taskId, {
+        subtasks: breakdown.subtasks || []
+      });
+
+      return {
+        breakdown: breakdown,
+        taskId: taskId
+      };
+    } catch (error) {
+      console.error("Error with AI breakdown:", error);
+      return { error: error.message };
+    }
+  }
+
+  async demonstrateZombieSystem() {
+    if (this.demoTaskIds.length < 2) return {};
+
+    try {
+      // Mark one task as zombie
+      const zombieTaskId = this.demoTaskIds[1];
+      await base44.entities.Task.update(zombieTaskId, {
+        status: "zombie",
+        zombie: {
+          state: "zombie",
+          riskScore: 0.85,
+          visualLevel: 3,
+          lastStateChangeAt: new Date().toISOString()
+        }
+      });
+
+      // Mark another as in_progress
+      if (this.demoTaskIds.length > 2) {
+        await base44.entities.Task.update(this.demoTaskIds[2], {
+          status: "in_progress"
+        });
+      }
+
+      // Update user XP
+      await base44.auth.updateMe({
+        xp: (this.originalUser?.xp || 0) + 150
+      });
+
+      return {
+        zombieTaskId,
+        message: "Zombie system demonstrated"
+      };
+    } catch (error) {
+      console.error("Error demonstrating zombie:", error);
+      return { error: error.message };
+    }
+  }
+
+  async spawnMutationCards() {
+    const cards = [
+      {
+        user_id: this.originalUser?.id,
+        rarity: "legendary",
+        card_type: "cosmetic",
+        name: "Procrastination Slayer",
+        description: "Ultimate zombie hunter badge",
+        drop_source: "zombieCure"
+      },
+      {
+        user_id: this.originalUser?.id,
+        rarity: "epic",
+        card_type: "booster",
+        name: "Focus Amplifier",
+        description: "+25% XP for next 3 tasks",
+        drop_source: "taskCompletion",
+        boost_value: 25
+      },
+      {
+        user_id: this.originalUser?.id,
+        rarity: "rare",
+        card_type: "cosmetic",
+        name: "Academic Warrior",
+        description: "Legendary study streak badge",
+        drop_source: "duelWin"
+      }
+    ];
+
+    const createdCards = [];
+    for (const card of cards) {
+      try {
+        const created = await base44.entities.MutationCard.create(card);
+        this.demoCardIds.push(created.id);
+        createdCards.push(created);
+      } catch (error) {
+        console.error("Error creating card:", error);
+      }
+    }
+
+    return {
+      cardsSpawned: createdCards.length,
+      cards: createdCards
+    };
+  }
+
+  async demonstrateIntensitySettings() {
+    try {
+      // Cycle through intensity levels
+      await base44.auth.updateMe({
+        zombie_intensity: 4
+      });
+
+      return {
+        intensitySet: 4,
+        message: "Intensity adjusted to 'Edgy' mode"
+      };
+    } catch (error) {
+      console.error("Error updating intensity:", error);
+      return { error: error.message };
+    }
+  }
+
+  async createDemoDuels() {
+    if (this.demoTaskIds.length < 3) return {};
+
+    try {
+      // Create a demo duel
+      const duel = await base44.entities.Duel.create({
+        challenger_id: this.originalUser?.id,
+        challengee_id: "demo-bot-user",
+        task_id: this.demoTaskIds[2],
+        bet_points: 100,
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        status: "active",
+        challenger_progress: 65,
+        challengee_progress: 45
+      });
+
+      this.demoDuelIds.push(duel.id);
+
+      return {
+        duelCreated: true,
+        duel: duel
+      };
+    } catch (error) {
+      console.error("Error creating duel:", error);
+      return { error: error.message };
+    }
+  }
+
+  async showAnalytics() {
+    try {
+      const user = await base44.auth.me();
+      
+      return {
+        analytics: {
+          totalXP: user.xp || 0,
+          badges: user.badges?.length || 0,
+          zombiesCured: user.zombie_score || 0,
+          tasksCompleted: this.demoTaskIds.length,
+          chronotype: user.energy_peak,
+          motivationTone: user.motivation_tone
+        }
+      };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  async cleanup() {
+    // Delete all demo tasks
+    for (const taskId of this.demoTaskIds) {
+      try {
+        await base44.entities.Task.delete(taskId);
+      } catch (error) {
+        console.error("Error deleting task:", error);
+      }
+    }
+
+    // Delete all demo duels
+    for (const duelId of this.demoDuelIds) {
+      try {
+        await base44.entities.Duel.delete(duelId);
+      } catch (error) {
+        console.error("Error deleting duel:", error);
+      }
+    }
+
+    // Delete all demo cards
+    for (const cardId of this.demoCardIds) {
+      try {
+        await base44.entities.MutationCard.delete(cardId);
+      } catch (error) {
+        console.error("Error deleting card:", error);
+      }
+    }
+
+    // Reset user data
+    if (this.originalUser) {
+      try {
+        await base44.auth.updateMe({
+          xp: this.originalUser.xp || 0,
+          zombie_intensity: this.originalUser.zombie_intensity || 3
+        });
+      } catch (error) {
+        console.error("Error resetting user:", error);
+      }
+    }
+
+    // Clear arrays
+    this.demoTaskIds = [];
+    this.demoDuelIds = [];
+    this.demoCardIds = [];
+  }
+}
