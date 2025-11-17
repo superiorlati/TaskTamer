@@ -1,0 +1,170 @@
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { CheckCircle2, Circle, Zap } from "lucide-react";
+import { ARCADE_COLORS } from "../zombie/ThemePalettes";
+import { Button } from "@/components/ui/button";
+
+export default function MilestoneChecklist({ 
+  duel, 
+  task, 
+  onMilestoneComplete 
+}) {
+  const [completedMilestones, setCompletedMilestones] = useState([]);
+  const milestoneCount = duel.milestones || 5;
+  const attackPower = duel.attack_power || 20;
+
+  const milestones = Array.from({ length: milestoneCount }, (_, i) => ({
+    id: i + 1,
+    title: `Milestone ${i + 1}`,
+    completed: completedMilestones.includes(i + 1)
+  }));
+
+  const handleComplete = (milestoneId) => {
+    if (completedMilestones.includes(milestoneId)) return;
+    
+    setCompletedMilestones(prev => [...prev, milestoneId]);
+    
+    if (onMilestoneComplete) {
+      onMilestoneComplete(milestoneId, attackPower);
+    }
+  };
+
+  const progressPercent = (completedMilestones.length / milestoneCount) * 100;
+
+  return (
+    <div 
+      className="rounded-xl p-6"
+      style={{
+        background: ARCADE_COLORS.black,
+        border: `2px solid ${ARCADE_COLORS.matrixGreen}`,
+        boxShadow: `0 0 30px ${ARCADE_COLORS.matrixGreen}33`
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-2xl font-bold neon-text">MILESTONE CHECKLIST</h3>
+          <p style={{ color: '#FFFFFF' }}>
+            {task?.title || 'Task Battle'}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+            Attack Power
+          </p>
+          <p className="text-3xl font-bold neon-text">
+            {attackPower}
+          </p>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold" style={{ color: '#FFFFFF' }}>
+            Progress
+          </span>
+          <span className="text-sm font-bold" style={{ color: ARCADE_COLORS.matrixGreen }}>
+            {completedMilestones.length}/{milestoneCount}
+          </span>
+        </div>
+        <div 
+          className="h-3 rounded-full overflow-hidden"
+          style={{ background: ARCADE_COLORS.darkGray }}
+        >
+          <motion.div
+            className="h-full"
+            style={{
+              background: `linear-gradient(90deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+              boxShadow: `0 0 10px ${ARCADE_COLORS.matrixGreen}`
+            }}
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+      </div>
+
+      {/* Milestones List */}
+      <div className="space-y-3">
+        {milestones.map((milestone, idx) => (
+          <motion.div
+            key={milestone.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: idx * 0.05 }}
+          >
+            <Button
+              onClick={() => handleComplete(milestone.id)}
+              disabled={milestone.completed}
+              className="w-full justify-start gap-3 h-auto py-4"
+              style={{
+                background: milestone.completed 
+                  ? `${ARCADE_COLORS.matrixGreen}30` 
+                  : ARCADE_COLORS.darkGray,
+                border: `2px solid ${
+                  milestone.completed ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.darkGray
+                }`,
+                color: '#FFFFFF',
+                boxShadow: milestone.completed 
+                  ? `0 0 20px ${ARCADE_COLORS.matrixGreen}` 
+                  : 'none'
+              }}
+            >
+              {milestone.completed ? (
+                <CheckCircle2 
+                  className="w-6 h-6" 
+                  style={{ color: ARCADE_COLORS.matrixGreen }} 
+                />
+              ) : (
+                <Circle 
+                  className="w-6 h-6" 
+                  style={{ color: '#FFFFFF' }} 
+                />
+              )}
+              
+              <div className="flex-1 text-left">
+                <p className="font-bold">{milestone.title}</p>
+                <p className="text-xs" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                  Complete to attack • {attackPower} damage
+                </p>
+              </div>
+
+              {milestone.completed && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-center gap-1 px-3 py-1 rounded-full"
+                  style={{
+                    background: `${ARCADE_COLORS.matrixGreen}40`,
+                    color: ARCADE_COLORS.matrixGreen
+                  }}
+                >
+                  <Zap className="w-4 h-4" />
+                  <span className="text-xs font-bold">COMPLETE</span>
+                </motion.div>
+              )}
+            </Button>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Info Banner */}
+      {completedMilestones.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 p-4 rounded-lg text-center"
+          style={{
+            background: `${ARCADE_COLORS.cyanGlow}20`,
+            border: `1px solid ${ARCADE_COLORS.cyanGlow}`
+          }}
+        >
+          <p className="font-bold" style={{ color: '#FFFFFF' }}>
+            💡 Click milestones as you complete them to launch attacks!
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+}
