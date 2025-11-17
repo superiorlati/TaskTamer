@@ -1,0 +1,278 @@
+/**
+ * TaskTamer Zombie Engine
+ * Complete specification for zombie state management
+ */
+
+export class ZombieEngine {
+  constructor(user) {
+    this.user = user;
+    this.visualLevel = user?.zombie_intensity || 3;
+    this.reducedMotion = user?.reduced_motion || false;
+    this.motivationTone = user?.motivation_tone || "sweet";
+  }
+
+  // STATE MACHINE: healthy → sick → zombie_rising → zombie → cured → archived
+  evaluateZombieState(task) {
+    const currentState = task.zombie?.state || "healthy";
+    const timeSinceLastAction = this.getTimeSinceLastAction(task);
+    const riskScore = this.calculateRiskScore(task, timeSinceLastAction);
+    const driftDelta = this.computeDrift(task, timeSinceLastAction);
+
+    let newState = currentState;
+    let shouldSpawnCard = false;
+    let xpMultiplier = 1.0;
+
+    // healthy → sick
+    if (currentState === "healthy") {
+      const minTime = Math.min(task.estimated_minutes * 0.5, 24 * 60);
+      if (timeSinceLastAction > minTime && this.calculatePriorityScore(task) < 0.5) {
+        newState = "sick";
+      }
+    }
+
+    // sick → zombie_rising
+    if (currentState === "sick") {
+      const deadlineHours = this.getDeadlineHours(task);
+      if (riskScore >= 0.4 || timeSinceLastAction > 48 * 60 || (deadlineHours < 72 && deadlineHours > 0)) {
+        newState = "zombie_rising";
+      }
+    }
+
+    // zombie_rising → zombie
+    if (currentState === "zombie_rising") {
+      if (riskScore >= 0.7 || timeSinceLastAction > 96 * 60 || driftDelta >= 0.6) {
+        newState = "zombie";
+        shouldSpawnCard = Math.random() < this.getCardSpawnChance(task, "zombie");
+      }
+    }
+
+    // any → cured (on completion)
+    if (task.status === "done" && currentState !== "cured" && currentState !== "healthy") {
+      newState = "cured";
+      xpMultiplier = 1.5;
+      shouldSpawnCard = true;
+    }
+
+    return {
+      newState,
+      riskScore: Math.min(riskScore, 1.0),
+      driftDelta,
+      shouldSpawnCard,
+      xpMultiplier,
+      visualLevel: this.visualLevel,
+      lastStateChangeAt: newState !== currentState ? new Date().toISOString() : task.zombie?.lastStateChangeAt
+    };
+  }
+
+  calculateRiskScore(task, timeSinceLastAction) {
+    let score = task.zombie?.riskScore || 0;
+
+    // Time factor
+    const timeFactor = Math.min(timeSinceLastAction / (24 * 60), 1.0);
+    score += timeFactor * 0.2;
+
+    // Deadline factor
+    const deadlineHours = this.getDeadlineHours(task);
+    if (deadlineHours > 0 && deadlineHours < 72) {
+      score += (72 - deadlineHours) / 72 * 0.3;
+    }
+
+    // Procrastination factor (from user profile)
+    const procrastinationFactor = this.getProcrastinationFactor();
+    score += procrastinationFactor * 0.1;
+
+    return Math.min(score, 1.0);
+  }
+
+  computeDrift(task, timeSinceLastAction) {
+    const timeFactor = Math.min(timeSinceLastAction / (task.estimated_minutes + 24 * 60), 1.0);
+    
+    const deadlineHours = this.getDeadlineHours(task);
+    const maxDeadlineWindow = 7 * 24;
+    const deadlineFactor = deadlineHours > 0 
+      ? Math.min((maxDeadlineWindow - deadlineHours) / maxDeadlineWindow, 1.0)
+      : 0;
+
+    const behaviorFactor = this.getProcrastinationFactor();
+
+    return 0.4 * timeFactor + 0.4 * deadlineFactor + 0.2 * behaviorFactor;
+  }
+
+  calculatePriorityScore(task) {
+    const deadlineUrgency = this.getDeadlineUrgency(task);
+    const normalizedImportance = (task.importance || 5) / 10;
+    const timePressure = this.getTimePressure(task);
+    const procrastinationRisk = task.procrastination_risk || 0;
+
+    return (
+      0.35 * deadlineUrgency +
+      0.30 * normalizedImportance +
+      0.20 * timePressure -
+      0.15 * procrastinationRisk
+    );
+  }
+
+  getCardSpawnChance(task, source) {
+    let baseChance = source === "zombie" ? 0.30 : 0.10;
+    
+    // Streak bonus (would need to track this in user data)
+    const streakBonus = 0; // TODO: implement streak tracking
+    
+    // Difficulty bonus
+    const difficultyBonus = Math.min(
+      (task.importance || 5) / 10 + (task.estimated_minutes || 30) / 120,
+      0.25
+    );
+
+    return Math.max(0.05, Math.min(baseChance + streakBonus + difficultyBonus, 0.75));
+  }
+
+  calculateXP(task, isCured = false) {
+    const baseXP = Math.round((task.estimated_minutes || 30) / 10) * (1 + (task.importance || 5) / 10);
+    return isCured ? Math.round(baseXP * 1.5) : baseXP;
+  }
+
+  // Helper methods
+  getTimeSinceLastAction(task) {
+    const lastUpdate = new Date(task.updated_date || task.created_date);
+    const now = new Date();
+    return (now - lastUpdate) / (1000 * 60); // minutes
+  }
+
+  getDeadlineHours(task) {
+    if (!task.deadline) return -1;
+    const deadline = new Date(task.deadline);
+    const now = new Date();
+    return (deadline - now) / (1000 * 60 * 60);
+  }
+
+  getDeadlineUrgency(task) {
+    const hours = this.getDeadlineHours(task);
+    if (hours < 0) return 0;
+    const maxWindow = 7 * 24;
+    return Math.min(1, 1 - (hours / maxWindow));
+  }
+
+  getTimePressure(task) {
+    const estimatedHours = (task.estimated_minutes || 30) / 60;
+    const deadlineHours = this.getDeadlineHours(task);
+    if (deadlineHours < 0) return 0;
+    return Math.min(estimatedHours / Math.max(deadlineHours, 1), 1);
+  }
+
+  getProcrastinationFactor() {
+    const typeFactors = {
+      scroller: 0.45,
+      busy_bee: 0.35,
+      overthinker: 0.50,
+      night_owl: 0.30
+    };
+    return typeFactors[this.user?.procrastinator_type] || 0.35;
+  }
+
+  // UI Actions Generator
+  generateUIActions(task, evaluation) {
+    const actions = [];
+
+    if (evaluation.newState !== task.zombie?.state) {
+      // State transition animation
+      actions.push({
+        type: "animateTile",
+        taskId: task.id,
+        animation: this.getStateAnimation(evaluation.newState),
+        durationMs: this.reducedMotion ? 0 : this.getAnimationDuration(evaluation.newState)
+      });
+
+      // Banner notification
+      if (evaluation.newState === "zombie") {
+        actions.push({
+          type: "showBanner",
+          text: this.getBannerText(evaluation.newState, task),
+          severity: "warning"
+        });
+      } else if (evaluation.newState === "cured") {
+        actions.push({
+          type: "showBanner",
+          text: this.getBannerText(evaluation.newState, task),
+          severity: "success"
+        });
+      }
+    }
+
+    return actions;
+  }
+
+  getStateAnimation(state) {
+    const animations = {
+      sick: "fadeToSick",
+      zombie_rising: "zombieRise",
+      zombie: "zombieFull",
+      cured: "celebration"
+    };
+    return animations[state] || "none";
+  }
+
+  getAnimationDuration(state) {
+    const durations = {
+      sick: 250,
+      zombie_rising: 600,
+      zombie: 400,
+      cured: 1200
+    };
+    return durations[state] || 300;
+  }
+
+  getBannerText(state, task) {
+    const messages = {
+      zombie: {
+        sweet: `Oh no! "${task.title}" needs your help. Let's bring it back! 💕`,
+        sarcastic: `Wow. "${task.title}" became a zombie. Consider me shocked. 😏`,
+        drill: `TASK ZOMBIFIED: "${task.title}". START NOW. 🪖`,
+        unhinged: `ZOMBIE ALERT: "${task.title}" IS COMING FOR YOUR GPA! 🤪`
+      },
+      cured: {
+        sweet: `Amazing work! You cured "${task.title}"! You're awesome! 🎉`,
+        sarcastic: `Well, well. You actually did it. "${task.title}" is cured. 😏`,
+        drill: `MISSION COMPLETE: "${task.title}" cured. Next target. 🪖`,
+        unhinged: `YOU SLAYED IT! "${task.title}" IS DEFEATED! 🎊`
+      }
+    };
+
+    return messages[state]?.[this.motivationTone] || messages[state]?.sweet || "";
+  }
+
+  // Analytics Events
+  generateAnalyticsEvents(task, evaluation) {
+    const events = [];
+
+    if (evaluation.newState !== task.zombie?.state) {
+      events.push({
+        event: "zombieStateChange",
+        userId: this.user?.id,
+        taskId: task.id,
+        oldState: task.zombie?.state || "healthy",
+        newState: evaluation.newState,
+        reason: "cron",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (evaluation.shouldSpawnCard) {
+      events.push({
+        event: "mutationCardEligible",
+        userId: this.user?.id,
+        taskId: task.id,
+        source: evaluation.newState === "cured" ? "zombieCure" : "zombieRise",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return events;
+  }
+}
+
+// Export helper function for easy use
+export function evaluateTaskZombieState(task, user) {
+  const engine = new ZombieEngine(user);
+  return engine.evaluateZombieState(task);
+}
