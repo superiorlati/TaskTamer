@@ -1,0 +1,221 @@
+import React from "react";
+import { motion } from "framer-motion";
+import { Trophy, TrendingUp, Sparkles, Heart, MessageCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ARCADE_COLORS } from "../zombie/ThemePalettes";
+
+const FEED_DATA = [
+  {
+    id: 1,
+    user: "Sarah M.",
+    avatar: "SM",
+    action: "won a duel and earned 250 XP",
+    emoji: "⚔️",
+    time: "5 mins ago",
+    reactions: 18
+  },
+  {
+    id: 2,
+    user: "Alex K.",
+    avatar: "AK",
+    action: "cured 3 zombies in a row",
+    emoji: "🧟",
+    time: "12 mins ago",
+    reactions: 12
+  },
+  {
+    id: 3,
+    user: "Jordan P.",
+    avatar: "JP",
+    action: "unlocked Legendary mutation card",
+    emoji: "✨",
+    time: "25 mins ago",
+    reactions: 24
+  },
+  {
+    id: 4,
+    user: "Taylor R.",
+    avatar: "TR",
+    action: "completed a 10-day streak",
+    emoji: "🔥",
+    time: "1 hour ago",
+    reactions: 31
+  }
+];
+
+const LEADERBOARD = [
+  { rank: 1, name: "You", xp: 2450, wins: 12, streak: 7 },
+  { rank: 2, name: "Sarah M.", xp: 2380, wins: 10, streak: 5 },
+  { rank: 3, name: "Alex K.", xp: 2210, wins: 9, streak: 8 },
+  { rank: 4, name: "Jordan P.", xp: 2100, wins: 8, streak: 4 },
+  { rank: 5, name: "Taylor R.", xp: 1950, wins: 7, streak: 6 }
+];
+
+export default function CommunityFeed() {
+  return (
+    <div className="mt-12">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <h2 className="text-3xl font-bold neon-text mb-2">COMMUNITY ARENA</h2>
+        <p style={{ color: '#FFFFFF' }}>
+          See what other players are achieving
+        </p>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Activity Feed */}
+        <div className="lg:col-span-2">
+          <Card 
+            className="glass-card"
+            style={{
+              border: `2px solid ${ARCADE_COLORS.matrixGreen}40`
+            }}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 neon-text">
+                <TrendingUp className="w-5 h-5" />
+                RECENT VICTORIES
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {FEED_DATA.map((item, idx) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="flex items-start gap-3 p-4 rounded-lg transition-all duration-200 hover:scale-105"
+                    style={{
+                      background: `${ARCADE_COLORS.darkGray}`,
+                      border: `1px solid ${ARCADE_COLORS.matrixGreen}40`
+                    }}
+                  >
+                    <Avatar>
+                      <AvatarFallback 
+                        style={{
+                          background: `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                          color: ARCADE_COLORS.black,
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {item.avatar}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold" style={{ color: '#FFFFFF' }}>
+                          {item.user}
+                        </span>
+                        <span className="text-2xl">{item.emoji}</span>
+                      </div>
+                      <p className="text-sm" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                        {item.action}
+                      </p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <button 
+                          className="flex items-center gap-1 text-sm transition-colors"
+                          style={{ color: '#FFFFFF' }}
+                        >
+                          <Heart className="w-4 h-4" />
+                          {item.reactions}
+                        </button>
+                        <button 
+                          className="flex items-center gap-1 text-sm transition-colors"
+                          style={{ color: '#FFFFFF' }}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          Reply
+                        </button>
+                        <span className="text-xs ml-auto" style={{ color: '#FFFFFF', opacity: 0.6 }}>
+                          {item.time}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Leaderboard */}
+        <div>
+          <Card 
+            className="glass-card"
+            style={{
+              border: `2px solid ${ARCADE_COLORS.matrixGreen}40`
+            }}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 neon-text">
+                <Trophy className="w-5 h-5" />
+                TOP DUELISTS
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {LEADERBOARD.map((entry, idx) => (
+                  <motion.div
+                    key={entry.rank}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="flex items-center gap-3 p-3 rounded-lg"
+                    style={{
+                      background: entry.rank === 1
+                        ? `${ARCADE_COLORS.matrixGreen}30`
+                        : ARCADE_COLORS.darkGray,
+                      border: entry.rank === 1
+                        ? `2px solid ${ARCADE_COLORS.matrixGreen}`
+                        : `1px solid ${ARCADE_COLORS.darkGray}`
+                    }}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center font-bold"
+                      style={{
+                        background: entry.rank === 1
+                          ? `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`
+                          : entry.rank === 2
+                            ? '#C0C0C0'
+                            : entry.rank === 3
+                              ? '#CD7F32'
+                              : ARCADE_COLORS.darkGray,
+                        color: entry.rank <= 3 ? ARCADE_COLORS.black : '#FFFFFF'
+                      }}
+                    >
+                      #{entry.rank}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold" style={{ color: '#FFFFFF' }}>
+                        {entry.name}
+                      </p>
+                      <p className="text-xs" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+                        {entry.xp} XP • {entry.wins} wins
+                      </p>
+                    </div>
+                    {entry.streak > 5 && (
+                      <Badge 
+                        style={{ 
+                          background: `${ARCADE_COLORS.bloodyRed}30`,
+                          color: ARCADE_COLORS.bloodyRed,
+                          border: `1px solid ${ARCADE_COLORS.bloodyRed}`
+                        }}
+                      >
+                        🔥 {entry.streak}
+                      </Badge>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
