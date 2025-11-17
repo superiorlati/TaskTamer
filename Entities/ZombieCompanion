@@ -1,0 +1,48 @@
+{
+  "name": "ZombieCompanion",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "zombie_dog",
+        "radioactive_bat",
+        "zombie_fairy",
+        "eyeball_drone",
+        "toxic_slug"
+      ],
+      "default": "zombie_dog"
+    },
+    "name": {
+      "type": "string",
+      "default": "Unnamed Sidekick"
+    },
+    "level": {
+      "type": "number",
+      "default": 1
+    },
+    "xp": {
+      "type": "number",
+      "default": 0
+    },
+    "chip_damage": {
+      "type": "number",
+      "default": 5,
+      "description": "Extra damage per attack"
+    },
+    "special_ability": {
+      "type": "string",
+      "default": ""
+    },
+    "evolution_stage": {
+      "type": "number",
+      "default": 1
+    }
+  },
+  "required": [
+    "user_id"
+  ]
+}
