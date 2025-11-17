@@ -1,0 +1,290 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Swords, Trophy, Clock, Zap, Plus, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ARCADE_COLORS } from "../components/zombie/ThemePalettes";
+import ChallengeWizard from "../components/duels/ChallengeWizard";
+import FightScene from "../components/duels/FightScene";
+import MilestoneChecklist from "../components/duels/MilestoneChecklist";
+import CommunityFeed from "../components/duels/CommunityFeed";
+
+export default function DuelsPage() {
+  const [user, setUser] = useState(null);
+  const [showWizard, setShowWizard] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: duels = [] } = useQuery({
+    queryKey: ['duels'],
+    queryFn: () => base44.entities.Duel.list('-created_date'),
+    initialData: [],
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => base44.entities.Task.list(),
+    initialData: [],
+  });
+
+  const createDuelMutation = useMutation({
+    mutationFn: async (challengeData) => {
+      return await base44.entities.Duel.create({
+        challenger_id: user.id,
+        challengee_id: challengeData.opponent.id,
+        task_id: challengeData.task.id,
+        bet_points: challengeData.betPoints,
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        status: "active",
+        challenger_progress: 0,
+        challengee_progress: 0,
+        attack_power: challengeData.attackPower,
+        milestones: challengeData.milestones
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['duels'] });
+      setShowWizard(false);
+    }
+  });
+
+  const updateProgressMutation = useMutation({
+    mutationFn: async ({ duelId, progress }) => {
+      const duel = duels.find(d => d.id === duelId);
+      const isChallenger = duel.challenger_id === user.id;
+      
+      return await base44.entities.Duel.update(duelId, {
+        [isChallenger ? 'challenger_progress' : 'challengee_progress']: progress
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['duels'] });
+    }
+  });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await base44.auth.me();
+      setUser(userData);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const handleMilestoneComplete = (duelId, milestoneId, attackPower) => {
+    const duel = duels.find(d => d.id === duelId);
+    if (!duel) return;
+
+    const isChallenger = duel.challenger_id === user.id;
+    const currentProgress = isChallenger ? duel.challenger_progress : duel.challengee_progress;
+    const newProgress = Math.min(100, currentProgress + attackPower);
+
+    updateProgressMutation.mutate({
+      duelId,
+      progress: newProgress
+    });
+  };
+
+  const activeDuels = duels.filter(d => d.status === "active");
+  const completedDuels = duels.filter(d => d.status === "completed");
+  const hasActiveDuel = activeDuels.length > 0;
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" 
+          style={{ borderColor: ARCADE_COLORS.matrixGreen }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6 mb-6"
+        >
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div 
+                className="w-16 h-16 rounded-xl flex items-center justify-center border-2"
+                style={{
+                  background: ARCADE_COLORS.black,
+                  borderColor: ARCADE_COLORS.bloodyRed,
+                  boxShadow: `0 0 20px ${ARCADE_COLORS.bloodyRed}`
+                }}
+              >
+                <Swords className="w-8 h-8" style={{ color: ARCADE_COLORS.bloodyRed }} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold neon-text">DUEL ARENA</h1>
+                <p style={{ color: '#FFFFFF' }}>
+                  Challenge opponents in real-time zombie battles
+                </p>
+              </div>
+            </div>
+            
+            <Button
+              onClick={() => setShowWizard(true)}
+              disabled={hasActiveDuel}
+              className="gap-2 font-bold"
+              style={{
+                background: hasActiveDuel 
+                  ? ARCADE_COLORS.darkGray 
+                  : `linear-gradient(135deg, ${ARCADE_COLORS.matrixGreen}, ${ARCADE_COLORS.radioactiveGreen})`,
+                color: hasActiveDuel ? '#FFFFFF' : ARCADE_COLORS.black,
+                border: `2px solid ${hasActiveDuel ? ARCADE_COLORS.darkGray : ARCADE_COLORS.matrixGreen}`,
+                boxShadow: hasActiveDuel ? 'none' : `0 0 30px ${ARCADE_COLORS.matrixGreen}`,
+                opacity: hasActiveDuel ? 0.5 : 1,
+                cursor: hasActiveDuel ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <Plus className="w-5 h-5" />
+              Create Challenge
+            </Button>
+          </div>
+
+          {hasActiveDuel && (
+            <Alert 
+              className="mt-4"
+              style={{
+                background: `${ARCADE_COLORS.bloodyRed}20`,
+                border: `1px solid ${ARCADE_COLORS.bloodyRed}`,
+                color: '#FFFFFF'
+              }}
+            >
+              <AlertCircle className="w-4 h-4" style={{ color: ARCADE_COLORS.bloodyRed }} />
+              <AlertDescription>
+                <strong>Active duel in progress!</strong> Finish your current duel before starting a new one.
+              </AlertDescription>
+            </Alert>
+          )}
+        </motion.div>
+
+        {/* Active Duels */}
+        {activeDuels.map((duel) => {
+          const task = tasks.find(t => t.id === duel.task_id);
+          return (
+            <div key={duel.id} className="space-y-6 mb-12">
+              {/* Fight Scene */}
+              <FightScene 
+                duel={duel}
+                user={user}
+                intensity={user.zombie_intensity || 3}
+                onMilestoneComplete={(milestoneId, damage) => 
+                  handleMilestoneComplete(duel.id, milestoneId, damage)
+                }
+              />
+
+              {/* Milestone Checklist */}
+              <MilestoneChecklist
+                duel={duel}
+                task={task}
+                onMilestoneComplete={(milestoneId, damage) => 
+                  handleMilestoneComplete(duel.id, milestoneId, damage)
+                }
+              />
+            </div>
+          );
+        })}
+
+        {/* Empty State */}
+        {activeDuels.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-2xl p-12 text-center mb-12"
+          >
+            <div 
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+              style={{
+                background: `${ARCADE_COLORS.bloodyRed}20`,
+                border: `2px solid ${ARCADE_COLORS.bloodyRed}`
+              }}
+            >
+              <Swords className="w-10 h-10" style={{ color: ARCADE_COLORS.bloodyRed }} />
+            </div>
+            <h2 className="text-2xl font-bold mb-3 neon-text">
+              NO ACTIVE DUELS
+            </h2>
+            <p style={{ color: '#FFFFFF' }}>
+              Challenge an opponent to start an epic zombie battle!
+            </p>
+          </motion.div>
+        )}
+
+        {/* Community Feed - DIRECTLY UNDERNEATH DUEL AREA */}
+        <CommunityFeed />
+
+        {/* Completed Duels History */}
+        {completedDuels.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold mb-4 neon-text">BATTLE HISTORY</h2>
+            <div className="grid gap-3">
+              {completedDuels.slice(0, 5).map((duel) => (
+                <CompletedDuelCard key={duel.id} duel={duel} user={user} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Challenge Wizard */}
+      {showWizard && (
+        <ChallengeWizard
+          tasks={tasks}
+          onComplete={(data) => createDuelMutation.mutate(data)}
+          onCancel={() => setShowWizard(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CompletedDuelCard({ duel, user }) {
+  const isWinner = duel.result === (duel.challenger_id === user.id ? "challenger" : "challengee");
+
+  return (
+    <div 
+      className="glass-card rounded-lg p-4"
+      style={{
+        border: `1px solid ${isWinner ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.darkGray}`
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Trophy 
+            className="w-5 h-5" 
+            style={{ color: isWinner ? ARCADE_COLORS.matrixGreen : ARCADE_COLORS.darkGray }} 
+          />
+          <div>
+            <p className="font-bold" style={{ color: '#FFFFFF' }}>
+              {isWinner ? "VICTORY!" : "DEFEATED"}
+            </p>
+            <p className="text-xs" style={{ color: ARCADE_COLORS.radioactiveGreen }}>
+              {duel.bet_points} XP
+            </p>
+          </div>
+        </div>
+        <Badge 
+          style={{ 
+            background: isWinner ? `${ARCADE_COLORS.matrixGreen}20` : `${ARCADE_COLORS.darkGray}`,
+            color: isWinner ? ARCADE_COLORS.matrixGreen : '#FFFFFF'
+          }}
+        >
+          {isWinner ? "+XP" : "Try Again"}
+        </Badge>
+      </div>
+    </div>
+  );
+}
