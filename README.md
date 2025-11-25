@@ -26,25 +26,25 @@ TaskTamer brings together multiple STEM disciplines to create a deterministic, t
 
 ## Core algorithms and engineering principles 
 
-- Adaptive Priority Engine
+- Adaptive Priority Engine:
 Real-time Eisenhower Matrix computed using urgency weighting, importance scaling and decay curves. Tasks are reprioritised automatically as deadlines approach, with deterministic, auditable transitions.
 
-- Inverse Power Milestone Splitting
+- Inverse Power Milestone Splitting:
 Tasks are split into milestones using an inverse power distribution. Fewer milestones equals greater damage per milestone; more milestones equals smaller, more frequent rewards. This provides fairness in duels and a measurable work-to-reward mapping.
 
-- Constraint Satisfaction Scheduler
+- Constraint Satisfaction Scheduler:
 The calendar is a constraint solver that respects fixed commitments (school, work), chronotype, and user-defined focus windows. It schedules tasks around immovable events, ensuring no clashes and preserving user constraints.
 
-- Behavioural Stress Prediction
+- Behavioural Stress Prediction:
 Lightweight ML models derived from time-series task behaviour detect burnout risk and stress patterns. When risk is detected, the system triggers restorative actions and rest-aware scheduling.
 
-- Rest-aware Scheduling & Scientific Break Timing
+- Rest-aware Scheduling & Scientific Break Timing:
 Breaks are scheduled using evidence-based focus cycles. Empirical research indicates scientifically timed breaks can improve attention by up to 25%. TaskTamer enforces, recommends or auto-inserts breaks according to onboarding preferences.
 
-- Event-sourced State & Deterministic Replay
+- Event-sourced State & Deterministic Replay:
 All state changes are logged to an append-only event stream to enable deterministic replays, reliable demo mode and reproducible judge demonstrations.
 
-- Server-adjudicated Duel Logic and Anti-cheat
+- Server-adjudicated Duel Logic and Anti-cheat:
 Duel outcomes are verified server-side using signed event proofs, deterministic seeds and idempotent updates to prevent tampering.
 
 # STEM principles demonstrated
