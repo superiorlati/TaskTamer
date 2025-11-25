@@ -1,14 +1,14 @@
-## TaskTamer — README
+# TaskTamer — README
 
 TaskTamer transforms student productivity into a living, adaptive world. Tasks become challenges. Milestones become battles. Progress powers up your companion and visibly reshapes a dynamic city. This project is built for impact, grounded in STEM, and designed to change how students learn, plan and thrive.
 
 TaskTamer is more than an app. It is a scientifically informed, AI-driven companion that turns motivation into measurable momentum and gives students the structure they need to succeed.
 
-## Why TaskTamer matters
+# Why TaskTamer matters
 
 Students do not merely need tools. They need systems that understand how humans actually work. Traditional planners assume perfect willpower. They fail when motivation falters. TaskTamer meets the real problem: chronic disengagement and the emotional barriers that make organisation impossible.
 
-# Key facts and impact potential: - 
+## Key facts and impact potential: - 
 
 87% of students report procrastinating on important tasks regularly.
 
@@ -20,11 +20,11 @@ Behavioural studies show that immediate, well-designed feedback and structured m
 
 TaskTamer targets this gap with STEM-rooted methods and measurable outcomes. It is designed to be transformational for students facing unstable environments, limited support, neurodiversity, or digital resource constraints.
 
-## How TaskTamer solves the problem — technical summary
+# How TaskTamer solves the problem — technical summary
 
 TaskTamer brings together multiple STEM disciplines to create a deterministic, testable, and scalable system:
 
-# Core algorithms and engineering principles 
+## Core algorithms and engineering principles 
 
 - Adaptive Priority Engine
 Real-time Eisenhower Matrix computed using urgency weighting, importance scaling and decay curves. Tasks are reprioritised automatically as deadlines approach, with deterministic, auditable transitions.
@@ -47,7 +47,7 @@ All state changes are logged to an append-only event stream to enable determinis
 - Server-adjudicated Duel Logic and Anti-cheat
 Duel outcomes are verified server-side using signed event proofs, deterministic seeds and idempotent updates to prevent tampering.
 
-## STEM principles demonstrated
+# STEM principles demonstrated
 
 TaskTamer is built on foundational STEM concepts and demonstrates them in real use:
 
@@ -63,7 +63,7 @@ Software Engineering: deterministic tests, CI, E2E and unit test suites, reprodu
 
 These principles ensure TaskTamer is not speculative. It is replicable, verifiable and ready to produce measurable benefits.
 
-## What we built during the hackathon
+# What we built during the hackathon
 
 Deliverables:
 
@@ -81,7 +81,7 @@ Wellbeing micro-interactions: breathing, stretch and gratitude prompts.
 
 Deterministic demo mode and replay JSON for judges.
 
-## User journey — how the app feels
+# User journey — how the app feels
 
 Onboarding captures chronotype, fixed commitments and motivation preferences.
 
@@ -95,7 +95,7 @@ Winning duels, curing zones or finishing streaks unlocks new city districts and 
 
 Community events and collaborative boss fights let students who lack support work together and gain shared rewards.
 
-## How TaskTamer aligns with Hack4Life requirements
+# How TaskTamer aligns with Hack4Life requirements
 
 IngeniumSTEM Hack4Life calls for projects that apply STEM to improve quality of life. TaskTamer is a direct match and goes beyond:
 
@@ -111,7 +111,7 @@ Technical feasibility: all core systems use deterministic algorithms and are cov
 
 Impact and scale: the solution is ready to scale to schools or regions and has design choices intended to reach millions of learners.
 
-# Installation and quick start (developer)
+## Installation and quick start (developer)
 Requirements:
 Node 18.x or later
 npm or yarn
@@ -127,16 +127,16 @@ npm test
  Run E2E tests
 npx playwright test
 
-# How to run the judge demo (deterministic)
+## How to run the judge demo (deterministic)
 
 Start the app with the demo seed enabled.
 Load the demo user profile.
 Run the replay JSON for the judge seed. This will reproduce the exact flows: basecamp, calender creation, cure lab, city map update and analytics snapshot.
 Exact commands and replay JSON are in /demo in the repo.
 
-## Roadmap and future impact
+# Roadmap and future impact
 
-# Short term:
+## Short term:
 
 Deepen duel mechanics, add advanced animations and richer reward trees.
 
@@ -148,7 +148,7 @@ Create a more engaging duel with animation
 
 Remove minor issues in logic
 
-# Mid term:
+## Mid term:
 
 University and school integrations with shared boss fights, study groups and campus leaderboards.
 
@@ -162,7 +162,7 @@ A global platform that changes how students organise their lives.
 
 Replace static planners with an adaptive, emotionally aware system used by billions of learners and people who crave a plan.
 
-## Ethics, privacy and safety
+# Ethics, privacy and safety
 
 TaskTamer was designed with privacy and safety at its core:
 
@@ -174,7 +174,7 @@ Age gating for intense visual modes and clear parental consent flows.
 
 Anonymised analytics for research and impact measurement.
 
-## Final appeal
+# Final appeal
 
 TaskTamer is born from personal frustration and engineered with scientific rigour. It combines algorithms, cognitive science and humane design to solve a real problem that affects millions of young people. This project does not merely automate planning. It restores momentum. It builds confidence. It gives students an ally in the daily battle against overwhelm.
 
